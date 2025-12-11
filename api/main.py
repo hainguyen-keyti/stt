@@ -54,13 +54,19 @@ app.include_router(metrics.router, tags=["Monitoring"])
 app.include_router(presets.router, tags=["Presets"])
 
 
+# Check if frontend exists
+STATIC_DIR = Path(__file__).parent.parent / "web" / "dist"
+
+
 @app.get("/", tags=["Root"])
 async def root():
     """
-    Root endpoint providing service information.
-
-    Returns basic service metadata and status.
+    Root endpoint - serves frontend if available, otherwise API info.
     """
+    if STATIC_DIR.exists():
+        index_file = STATIC_DIR / "index.html"
+        if index_file.exists():
+            return FileResponse(index_file)
     return {
         "service": "Professional Subtitle Generation Service",
         "version": "4.0.0",
@@ -88,8 +94,7 @@ async def health_check():
 
 
 # Serve static frontend files in production
-STATIC_DIR = Path(__file__).parent.parent / "web" / "dist"
-if STATIC_DIR.exists():
+if STATIC_DIR.exists() and (STATIC_DIR / "assets").exists():
     app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
 
     @app.get("/{full_path:path}", include_in_schema=False)
