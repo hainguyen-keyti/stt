@@ -1,0 +1,26 @@
+{
+  "title": "Accurate",
+  "engine": "openai-whisper",
+  "description": "Tối ưu độ chính xác cao nhất. Xử lý chậm nhưng kết quả tốt nhất.",
+  "transcription": {
+    "model_size": "turbo",
+    "language": null,
+    "word_timestamps": true,
+    "beam_size": 15,
+    "temperature": 0.0,
+    "best_of": 7,
+    "condition_on_previous_text": false,
+    "no_speech_threshold": 0.5,
+    "compression_ratio_threshold": 2.0,
+    "logprob_threshold": -0.8,
+    "initial_prompt": null,
+    "vad_filter": true
+  },
+  "formatter": {
+    "max_line_width": 42,
+    "max_line_count": 2,
+    "adjust_timing": true,
+    "split_by_punctuation": true,
+    "word_level": false
+  }
+}

@@ -1,0 +1,74 @@
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+venv/
+.venv/
+env/
+ENV/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Documentation
+docs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.claude/
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env*
+!.env.example
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Temporary
+tmp/
+temp/
+*.tmp
+uploads/
+cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Specs and Planning
+specs/
+.specify/
+
+# Sample/Test files
+sample/
+fixtures/
+*.srt
+*.vtt
+*.json
+!presets/*.json
+!web/package*.json
+
+# Node modules (will be installed in build stage)
+web/node_modules/
+web/dist/
+
+# Test files
+test_*.py
+tests/
+pytest.ini

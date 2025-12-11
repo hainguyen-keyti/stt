@@ -1,0 +1,26 @@
+{
+  "title": "Default",
+  "engine": "faster-whisper",
+  "description": "Cài đặt mặc định cho transcription tổng quát. Cân bằng giữa tốc độ và chất lượng.",
+  "transcription": {
+    "model_size": "large-v3",
+    "language": null,
+    "word_timestamps": true,
+    "beam_size": 5,
+    "temperature": 0.0,
+    "best_of": 5,
+    "condition_on_previous_text": true,
+    "no_speech_threshold": 0.6,
+    "compression_ratio_threshold": 2.4,
+    "logprob_threshold": -1.0,
+    "initial_prompt": null,
+    "vad_filter": true
+  },
+  "formatter": {
+    "max_line_width": 42,
+    "max_line_count": 2,
+    "adjust_timing": false,
+    "split_by_punctuation": false,
+    "word_level": false
+  }
+}

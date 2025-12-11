@@ -1,0 +1,26 @@
+{
+  "title": "Movie/Film",
+  "engine": "openai-whisper",
+  "description": "Tối ưu cho phim, có nhạc nền và hiệu ứng âm thanh. Phụ đề dài, 2 dòng.",
+  "transcription": {
+    "model_size": "turbo",
+    "language": null,
+    "word_timestamps": true,
+    "beam_size": 10,
+    "temperature": 0.0,
+    "best_of": 5,
+    "condition_on_previous_text": false,
+    "no_speech_threshold": 0.6,
+    "compression_ratio_threshold": 2.4,
+    "logprob_threshold": -1.0,
+    "initial_prompt": null,
+    "vad_filter": true
+  },
+  "formatter": {
+    "max_line_width": 42,
+    "max_line_count": 2,
+    "adjust_timing": false,
+    "split_by_punctuation": false,
+    "word_level": false
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "title": "Karaoke",
+  "engine": "openai-whisper",
+  "description": "Tối ưu cho lyrics, karaoke. Mỗi từ một entry, timing chính xác từng từ.",
+  "transcription": {
+    "model_size": "turbo",
+    "language": null,
+    "word_timestamps": true,
+    "beam_size": 10,
+    "temperature": 0.0,
+    "best_of": 5,
+    "condition_on_previous_text": false,
+    "no_speech_threshold": 0.4,
+    "compression_ratio_threshold": 2.4,
+    "logprob_threshold": -1.0,
+    "initial_prompt": null,
+    "vad_filter": false
+  },
+  "formatter": {
+    "max_line_width": 30,
+    "max_line_count": 1,
+    "adjust_timing": true,
+    "split_by_punctuation": false,
+    "word_level": true
+  }
+}

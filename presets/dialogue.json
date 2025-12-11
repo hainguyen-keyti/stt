@@ -1,0 +1,26 @@
+{
+  "title": "Dialogue",
+  "engine": "openai-whisper",
+  "description": "Tối ưu cho hội thoại 2+ người, có nhạc nền. Phụ đề ngắn gọn, timing chính xác.",
+  "transcription": {
+    "model_size": "turbo",
+    "language": null,
+    "word_timestamps": true,
+    "beam_size": 10,
+    "temperature": 0.0,
+    "best_of": 5,
+    "condition_on_previous_text": false,
+    "no_speech_threshold": 0.6,
+    "compression_ratio_threshold": 2.4,
+    "logprob_threshold": -1.0,
+    "initial_prompt": null,
+    "vad_filter": true
+  },
+  "formatter": {
+    "max_line_width": 18,
+    "max_line_count": 1,
+    "adjust_timing": true,
+    "split_by_punctuation": true,
+    "word_level": false
+  }
+}

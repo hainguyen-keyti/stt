@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git fetch:*)",
+      "Bash(ls:*)",
+      "Bash(bash:*)",
+      "Bash(.specify/scripts/bash/check-prerequisites.sh:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(cat:*)",
+      "Bash(python3:*)",
+      "Bash(source venv/bin/activate)",
+      "Bash(pip install:*)",
+      "Bash(timeout 3 uvicorn:*)",
+      "Bash(python -c:*)",
+      "Bash(./venv/bin/pip install:*)",
+      "Bash(./venv/bin/python3:*)",
+      "Bash(./venv/bin/pytest tests/ -v --tb=short -k \"not slow and not benchmark\")",
+      "Bash(curl:*)",
+      "Bash(find:*)",
+      "Bash(chmod:*)",
+      "Bash(git log:*)",
+      "Bash(grep:*)",
+      "Bash(head:*)",
+      "Bash(timeout 5 python3:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
