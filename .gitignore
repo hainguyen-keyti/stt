@@ -31,7 +31,7 @@ ENV/
 *.pth
 *.pt
 *.ckpt
-models/
+/models/
 checkpoints/
 .cache/
 
