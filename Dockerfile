@@ -7,24 +7,17 @@ RUN npm install
 COPY web/ ./
 RUN npm run build
 
-# Stage 2: Python API with CUDA support
-FROM nvidia/cuda:12.1-cudnn8-runtime-ubuntu22.04
+# Stage 2: Python API (CPU version)
+FROM python:3.11-slim
 
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3.11 \
-    python3.11-venv \
-    python3-pip \
     ffmpeg \
     git \
     && rm -rf /var/lib/apt/lists/*
-
-# Set Python 3.11 as default
-RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 \
-    && update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1
 
 # Create app directory
 WORKDIR /app
@@ -32,8 +25,8 @@ WORKDIR /app
 # Install Python dependencies
 COPY requirements.txt .
 
-# Install PyTorch with CUDA support first
-RUN pip3 install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+# Install PyTorch CPU version
+RUN pip3 install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
 # Install other dependencies
 RUN pip3 install --no-cache-dir -r requirements.txt

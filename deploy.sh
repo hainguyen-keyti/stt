@@ -16,7 +16,7 @@ docker stop stt-service 2>/dev/null || true
 docker rm stt-service 2>/dev/null || true
 
 echo "=== Starting new container ==="
-docker run -d --gpus all -p 8000:8000 \
+docker run -d -p 8000:8000 \
   -v whisper-cache:/root/.cache/whisper \
   -v hf-cache:/root/.cache/huggingface \
   --name stt-service \
