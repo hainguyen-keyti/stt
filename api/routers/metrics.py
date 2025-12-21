@@ -13,7 +13,7 @@ import threading
 
 from fastapi import APIRouter
 from api.models.responses import Metrics
-from lib.utils.gpu import is_gpu_available, get_vram_info
+from modules.stt.utils.gpu import is_gpu_available, get_vram_info
 
 logger = logging.getLogger(__name__)
 

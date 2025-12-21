@@ -10,7 +10,7 @@ import logging
 from typing import Optional, Dict, Any
 from pathlib import Path
 
-from lib.engines.base import ASREngine, TranscriptionResult, Segment, Word, EngineInfo
+from modules.stt.engines.base import ASREngine, TranscriptionResult, Segment, Word, EngineInfo
 
 logger = logging.getLogger(__name__)
 

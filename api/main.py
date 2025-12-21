@@ -15,7 +15,7 @@ import time
 
 from api.utils.errors import register_exception_handlers
 from api.utils.logging import setup_logging
-from api.routers import subtitle, metrics, presets
+from api.routers import subtitle, metrics, presets, separator, tts
 
 # Setup logging
 setup_logging(log_level="INFO", use_json=False)  # Use simple format for development
@@ -49,7 +49,9 @@ app.add_middleware(
 register_exception_handlers(app)
 
 # Register routers
-app.include_router(subtitle.router, tags=["Subtitles"])
+app.include_router(subtitle.router, prefix="/subtitle", tags=["Subtitles"])
+app.include_router(separator.router, prefix="/separator", tags=["Audio Separator"])
+app.include_router(tts.router, prefix="/tts", tags=["TTS"])
 app.include_router(metrics.router, tags=["Monitoring"])
 app.include_router(presets.router, tags=["Presets"])
 
@@ -101,7 +103,7 @@ if STATIC_DIR.exists() and (STATIC_DIR / "assets").exists():
     async def serve_frontend(full_path: str):
         """Serve frontend SPA for all non-API routes."""
         # Skip API routes
-        if full_path.startswith(("docs", "redoc", "openapi.json", "subtitle", "presets", "metrics", "health")):
+        if full_path.startswith(("docs", "redoc", "openapi.json", "subtitle", "separator", "tts", "presets", "metrics", "health")):
             return None
         # Serve index.html for SPA routing
         index_file = STATIC_DIR / "index.html"

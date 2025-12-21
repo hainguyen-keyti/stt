@@ -21,7 +21,17 @@
       "Bash(git log:*)",
       "Bash(grep:*)",
       "Bash(head:*)",
-      "Bash(timeout 5 python3:*)"
+      "Bash(timeout 5 python3:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(PYTHONPATH=. python3:*)",
+      "Bash(./venv/bin/python:*)",
+      "Bash(npm run build:*)",
+      "Bash(pip3 install:*)",
+      "Bash(COQUI_TOS_AGREED=1 python3:*)",
+      "Bash(piper --help:*)",
+      "Bash(xargs basename:*)"
     ],
     "deny": [],
     "ask": []

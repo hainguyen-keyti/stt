@@ -15,6 +15,14 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
       },
+      '/separator': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+      '/tts': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
       '/presets': {
         target: 'http://localhost:8000',
         changeOrigin: true,

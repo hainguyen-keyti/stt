@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/presets")
 
-# Presets directory path
-PRESETS_DIR = Path(__file__).parent.parent.parent / "presets"
+# Presets directory path (inside modules/stt)
+PRESETS_DIR = Path(__file__).parent.parent.parent / "modules" / "stt" / "presets"
 
 
 @router.get("/", summary="List all presets", response_model=List[PresetSchema])

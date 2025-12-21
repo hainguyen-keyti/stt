@@ -1364,6 +1364,150 @@
   font-weight: 600;
 }
 
+/* Preset Grid for Separator */
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.preset-card {
+  position: relative;
+  padding: 1rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.preset-card:hover {
+  border-color: #667eea;
+  background: #f9fafb;
+}
+
+.preset-card.selected {
+  border-color: #667eea;
+  background: #f0f4ff;
+}
+
+.preset-card input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+}
+
+.preset-content {
+  text-align: center;
+}
+
+.preset-name {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 0.3rem;
+}
+
+.preset-desc {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+/* Slider Styles */
+.slider {
+  width: 100%;
+  height: 8px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #e0e0e0;
+  border-radius: 4px;
+  outline: none;
+  margin: 0.5rem 0;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: #667eea;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  background: #5568d3;
+}
+
+.slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background: #667eea;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+.slider-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #999;
+  margin-top: 0.25rem;
+}
+
+/* Volume Preview */
+.volume-preview {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.volume-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.volume-bar:last-child {
+  margin-bottom: 0;
+}
+
+.volume-label {
+  width: 100px;
+  font-weight: 500;
+  color: #333;
+}
+
+.volume-indicator {
+  flex: 1;
+  height: 20px;
+  background: #e0e0e0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.volume-fill {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.3s ease;
+}
+
+.volume-fill.vocal {
+  background: linear-gradient(90deg, #667eea, #764ba2);
+}
+
+.volume-fill.instrumental {
+  background: linear-gradient(90deg, #4caf50, #8bc34a);
+}
+
+.volume-value {
+  width: 60px;
+  text-align: right;
+  font-weight: 600;
+  color: #333;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .form-grid,

@@ -7,7 +7,7 @@ subtitle format used by YouTube, Premiere Pro, and most video players.
 
 import logging
 from typing import List
-from lib.engines.base import Segment, Word
+from modules.stt.engines.base import Segment, Word
 
 logger = logging.getLogger(__name__)
 

@@ -9,8 +9,8 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from enum import Enum
 
-# Import base models from lib
-from lib.engines.base import Segment, Word
+# Import base models from stt module
+from modules.stt.engines.base import Segment, Word
 
 
 class PreprocessStrategy(str, Enum):

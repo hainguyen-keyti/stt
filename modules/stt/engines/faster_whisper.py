@@ -10,7 +10,7 @@ import time
 from typing import Optional
 from pathlib import Path
 
-from lib.engines.base import (
+from modules.stt.engines.base import (
     ASREngine,
     TranscriptionResult,
     Segment,

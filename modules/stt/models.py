@@ -10,9 +10,9 @@ from typing import Dict, Optional, Tuple
 from datetime import datetime
 from collections import OrderedDict
 
-from lib.engines.base import ASREngine
-from lib.engines.factory import EngineFactory
-from lib.utils.gpu import get_vram_info, clear_gpu_cache, is_gpu_available
+from modules.stt.engines.base import ASREngine
+from modules.stt.engines.factory import EngineFactory
+from modules.stt.utils.gpu import get_vram_info, clear_gpu_cache, is_gpu_available
 
 logger = logging.getLogger(__name__)
 

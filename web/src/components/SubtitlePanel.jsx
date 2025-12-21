@@ -24,7 +24,7 @@ const DESCRIPTIONS = {
   initial_prompt: 'Hướng dẫn model với ngữ cảnh, từ vựng đặc biệt để cải thiện độ chính xác.',
 }
 
-const POLL_INTERVAL = 2000 // 2 seconds
+const POLL_INTERVAL = 5000 // 5 seconds
 
 function SubtitlePanel() {
   const [file, setFile] = useState(null)

@@ -4,16 +4,18 @@ In-memory Job Queue Manager
 Manages async subtitle generation jobs with status tracking.
 """
 
-import asyncio
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, Optional
 import threading
 
 logger = logging.getLogger(__name__)
+
+# Job retention time in seconds (5 minutes)
+JOB_RETENTION_SECONDS = 300
 
 
 class JobStatus(str, Enum):
@@ -56,9 +58,8 @@ class JobManager:
     def create_job(self, format: str = "srt", filename: str = "") -> Job:
         """Create a new job and return it"""
         with self._lock:
-            # Clean up old completed jobs if we have too many
-            if len(self._jobs) >= self._max_jobs:
-                self._cleanup_old_jobs()
+            # Always cleanup old jobs first
+            self._cleanup_old_jobs()
 
             job_id = str(uuid.uuid4())[:8]  # Short ID for convenience
             job = Job(
@@ -108,20 +109,23 @@ class JobManager:
             return job
 
     def _cleanup_old_jobs(self):
-        """Remove oldest completed jobs to free memory"""
-        completed_jobs = [
-            (job_id, job) for job_id, job in self._jobs.items()
-            if job.status in (JobStatus.COMPLETED, JobStatus.FAILED)
-        ]
+        """Remove completed/failed jobs older than retention time"""
+        now = datetime.now()
+        cutoff = now - timedelta(seconds=JOB_RETENTION_SECONDS)
 
-        # Sort by completion time and remove oldest
-        completed_jobs.sort(key=lambda x: x[1].completed_at or datetime.min)
+        jobs_to_remove = []
+        for job_id, job in self._jobs.items():
+            # Remove completed/failed jobs older than retention time
+            if job.status in (JobStatus.COMPLETED, JobStatus.FAILED):
+                if job.completed_at and job.completed_at < cutoff:
+                    jobs_to_remove.append(job_id)
 
-        # Remove half of completed jobs
-        to_remove = len(completed_jobs) // 2
-        for job_id, _ in completed_jobs[:to_remove]:
+        for job_id in jobs_to_remove:
             del self._jobs[job_id]
             logger.debug(f"Cleaned up old job {job_id}")
+
+        if jobs_to_remove:
+            logger.info(f"Cleaned up {len(jobs_to_remove)} old jobs")
 
     def list_jobs(self) -> Dict[str, Job]:
         """List all jobs"""

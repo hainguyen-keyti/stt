@@ -7,9 +7,9 @@ Provides factory pattern for creating ASR engine instances.
 import logging
 from typing import Type
 
-from lib.engines.base import ASREngine
-from lib.engines.faster_whisper import FasterWhisperEngine, FASTER_WHISPER_AVAILABLE
-from lib.engines.openai_whisper import OpenAIWhisperEngine, OPENAI_WHISPER_AVAILABLE
+from modules.stt.engines.base import ASREngine
+from modules.stt.engines.faster_whisper import FasterWhisperEngine, FASTER_WHISPER_AVAILABLE
+from modules.stt.engines.openai_whisper import OpenAIWhisperEngine, OPENAI_WHISPER_AVAILABLE
 
 logger = logging.getLogger(__name__)
 

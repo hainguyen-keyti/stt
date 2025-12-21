@@ -34,16 +34,18 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 # Install ASR engines
 RUN pip3 install --no-cache-dir faster-whisper openai-whisper
 
+# Install audio separator dependencies (audio-separator with Demucs)
+RUN pip3 install --no-cache-dir "audio-separator[cpu]" soundfile pydub
+
 # Copy application code
 COPY api/ ./api/
-COPY lib/ ./lib/
-COPY presets/ ./presets/
+COPY modules/ ./modules/
 
 # Copy built frontend from Stage 1
 COPY --from=frontend-builder /app/web/dist ./web/dist
 
 # Create directories for uploads and cache
-RUN mkdir -p /app/uploads /app/cache /root/.cache/whisper /root/.cache/huggingface
+RUN mkdir -p /app/uploads /app/cache /root/.cache/whisper /root/.cache/huggingface /root/.cache/torch
 
 # Environment variables
 ENV PYTHONPATH=/app
