@@ -7,14 +7,27 @@ python-multipart==0.0.6
 pydantic==2.5.2
 pydantic-settings==2.1.0
 
-# ASR Engines (will be installed separately as they depend on PyTorch)
-# faster-whisper - installed, see installation log
-# Note: Install with: pip install faster-whisper
-
 # Audio Processing
 librosa==0.10.1
 soundfile==0.12.1
 scipy==1.11.4
+pydub==0.25.1
+numpy>=1.24.0
+
+# TTS Engines
+edge-tts>=6.1.9
+gTTS>=2.5.0
+
+# ASR Engines
+# Note: These require PyTorch, install separately if needed
+# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+faster-whisper>=0.10.0
+openai-whisper>=20231117
+
+# Audio Separator
+# Note: For CPU: pip install "audio-separator[cpu]"
+# For GPU: pip install "audio-separator[gpu]"
+audio-separator>=0.17.0
 
 # Testing
 pytest==7.4.3
@@ -24,3 +37,4 @@ httpx==0.25.2
 
 # Utilities
 python-dotenv==1.0.0
+aiofiles>=23.0.0

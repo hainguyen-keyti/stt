@@ -34,8 +34,11 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 # Install ASR engines
 RUN pip3 install --no-cache-dir faster-whisper openai-whisper
 
+# Install TTS engines
+RUN pip3 install --no-cache-dir edge-tts gTTS pydub
+
 # Install audio separator dependencies (audio-separator with Demucs)
-RUN pip3 install --no-cache-dir "audio-separator[cpu]" soundfile pydub
+RUN pip3 install --no-cache-dir "audio-separator[cpu]" soundfile
 
 # Copy application code
 COPY api/ ./api/
