@@ -13,10 +13,13 @@ FROM python:3.11-slim
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies
+# Install system dependencies (including build tools for diffq)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     git \
+    gcc \
+    g++ \
+    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app directory
