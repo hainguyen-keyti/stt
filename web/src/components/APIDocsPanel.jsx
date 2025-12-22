@@ -80,7 +80,7 @@ const API_SECTIONS = [
   {
     id: 'tts',
     title: 'Text-to-Speech (TTS)',
-    description: 'Chuyển đổi text thành giọng nói',
+    description: 'Chuyển đổi text thành giọng nói với nhiều engine (Edge TTS, gTTS, CapCut TTS)',
     endpoints: [
       {
         method: 'POST',
@@ -90,20 +90,30 @@ const API_SECTIONS = [
           { name: 'text', type: 'string', required: true, desc: 'Văn bản cần chuyển (tối đa 5000 ký tự)' },
           { name: 'voice_id', type: 'string', required: false, desc: 'ID giọng nói (default: vi-VN-HoaiMyNeural)' },
           { name: 'pitch', type: 'integer', required: false, desc: 'Cao độ: -12 đến +12 semitones (default: 0)' },
-          { name: 'speed', type: 'float', required: false, desc: 'Tốc độ: 0.5 đến 2.0 (default: 1.0)' },
+          { name: 'speed', type: 'float', required: false, desc: 'Tốc độ: 0.5 đến 1.5 (default: 1.0). Bỏ qua nếu dùng target_duration_ms' },
           { name: 'output_format', type: 'string', required: false, desc: 'Định dạng: mp3, wav (default: mp3)' },
+          { name: 'target_duration_ms', type: 'integer', required: false, desc: 'Thời gian mục tiêu (100-60000ms). Nếu set, speed sẽ tự động tính' },
+          { name: 'min_speed', type: 'float', required: false, desc: 'Tốc độ tối thiểu khi dùng target_duration_ms (0.3-1.0)' },
+          { name: 'max_speed', type: 'float', required: false, desc: 'Tốc độ tối đa khi dùng target_duration_ms (1.0-3.0)' },
         ],
         response: `{
   "success": true,
   "audio": "base64_encoded_audio_data...",
   "format": "mp3",
   "voice_id": "vi-VN-HoaiMyNeural",
-  "voice_name": "HoaiMy",
+  "voice_name": "Edge Nữ",
   "engine": "edge",
   "pitch": 0,
   "speed": 1.0,
   "size_bytes": 45678,
-  "processing_time_ms": 1234
+  "processing_time_ms": 1234,
+  "time_adjust": {
+    "target_duration_ms": 2000,
+    "original_duration_ms": 1500,
+    "calculated_speed": 0.75,
+    "final_speed": 0.75,
+    "speed_clamped": false
+  }
 }`,
         curlExample: `curl -X POST "https://your-domain.com/tts/synthesize" \\
   -H "Content-Type: application/json" \\
@@ -118,22 +128,52 @@ const API_SECTIONS = [
         method: 'GET',
         path: '/tts/voices',
         description: 'Lấy danh sách giọng nói khả dụng',
-        params: [],
+        params: [
+          { name: 'language', type: 'string', required: false, desc: 'Lọc theo ngôn ngữ (vd: vi)' },
+          { name: 'gender', type: 'string', required: false, desc: 'Lọc theo giới tính: male, female' },
+          { name: 'engine', type: 'string', required: false, desc: 'Lọc theo engine: edge, gtts, capcut' },
+        ],
         response: `{
   "voices": [
     {
       "id": "vi-VN-HoaiMyNeural",
-      "name": "HoaiMy",
+      "name": "Edge Nữ",
       "language": "vi-VN",
       "gender": "female",
-      "engine": "edge"
+      "engine": "edge",
+      "description": "Vietnamese female voice - natural and clear"
     },
     {
       "id": "vi-VN-NamMinhNeural",
-      "name": "NamMinh",
+      "name": "Edge Nam",
       "language": "vi-VN",
       "gender": "male",
-      "engine": "edge"
+      "engine": "edge",
+      "description": "Vietnamese male voice - professional"
+    },
+    {
+      "id": "gtts-vi",
+      "name": "gTTS Nữ",
+      "language": "vi",
+      "gender": "female",
+      "engine": "gtts",
+      "description": "Google TTS Vietnamese voice"
+    },
+    {
+      "id": "tt-BV074_streaming",
+      "name": "CapCut Nữ",
+      "language": "vi-VN",
+      "gender": "female",
+      "engine": "capcut",
+      "description": "Vietnamese female voice - CapCut/TikTok style"
+    },
+    {
+      "id": "tt-BV075_streaming",
+      "name": "CapCut Nam",
+      "language": "vi-VN",
+      "gender": "male",
+      "engine": "capcut",
+      "description": "Vietnamese male voice - CapCut/TikTok style"
     }
   ]
 }`,
@@ -141,22 +181,18 @@ const API_SECTIONS = [
       },
       {
         method: 'GET',
-        path: '/tts/presets',
-        description: 'Lấy danh sách preset giọng nói',
+        path: '/tts/engines',
+        description: 'Lấy danh sách TTS engines khả dụng',
         params: [],
         response: `{
-  "presets": [
-    {
-      "id": "cute_female",
-      "name": "Cute Female",
-      "description": "Giọng nữ dễ thương",
-      "voice_id": "vi-VN-HoaiMyNeural",
-      "pitch": 3,
-      "speed": 1.1
-    }
-  ]
+  "engines": [
+    { "name": "edge", "display_name": "Microsoft Edge TTS" },
+    { "name": "gtts", "display_name": "Google TTS" },
+    { "name": "capcut", "display_name": "CapCut TTS" }
+  ],
+  "available": true
 }`,
-        curlExample: `curl "https://your-domain.com/tts/presets"`,
+        curlExample: `curl "https://your-domain.com/tts/engines"`,
       },
     ],
   },
@@ -230,7 +266,7 @@ const API_SECTIONS = [
   "version": "4.0.0",
   "services": {
     "stt": { "status": "ok", "engines": ["faster-whisper", "openai-whisper"] },
-    "tts": { "status": "ok", "engines": ["edge-tts", "gtts"] },
+    "tts": { "status": "ok", "engines": ["edge-tts", "gtts", "capcut"] },
     "separator": { "status": "ok" }
   }
 }`,
@@ -277,11 +313,21 @@ const WORKFLOW_EXAMPLES = [
   {
     id: 'tts-batch',
     title: 'TTS hàng loạt',
-    description: 'Chuyển nhiều đoạn text thành audio',
+    description: 'Chuyển nhiều đoạn text thành audio với thời gian cố định',
     steps: [
-      { step: 1, action: 'Lấy danh sách voices', endpoint: 'GET /tts/voices', params: 'Chọn voice phù hợp' },
-      { step: 2, action: 'Synthesize từng đoạn', endpoint: 'POST /tts/synthesize', params: 'text, voice_id, pitch, speed' },
+      { step: 1, action: 'Lấy danh sách voices', endpoint: 'GET /tts/voices', params: 'Chọn voice: Edge, gTTS, hoặc CapCut' },
+      { step: 2, action: 'Synthesize từng đoạn', endpoint: 'POST /tts/synthesize', params: 'text, voice_id, pitch, speed hoặc target_duration_ms' },
       { step: 3, action: 'Decode và save', endpoint: 'Từ response.audio', params: 'Base64 decode thành file MP3' },
+    ],
+  },
+  {
+    id: 'tts-time-adjust',
+    title: 'TTS với thời gian cố định',
+    description: 'Tạo audio với độ dài chính xác (cho sync video/audio)',
+    steps: [
+      { step: 1, action: 'Xác định thời gian mục tiêu', endpoint: 'Tính từ video segment', params: 'vd: 2000ms cho câu thoại' },
+      { step: 2, action: 'Synthesize với time adjust', endpoint: 'POST /tts/synthesize', params: 'target_duration_ms=2000, min_speed=0.5, max_speed=2.0' },
+      { step: 3, action: 'Kiểm tra kết quả', endpoint: 'Từ response.time_adjust', params: 'calculated_speed, speed_clamped' },
     ],
   },
 ]

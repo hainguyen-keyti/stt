@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 # Check available engines
 EDGE_TTS_AVAILABLE = False
 GTTS_AVAILABLE = False
+CAPCUT_TTS_AVAILABLE = False
 
 try:
     from modules.tts.engines.edge_tts import EdgeTTSEngine, EDGE_TTS_AVAILABLE as _EDGE
@@ -34,6 +35,12 @@ except ImportError:
 try:
     from modules.tts.engines.google_tts import GoogleTTSEngine, GTTS_AVAILABLE as _GTTS
     GTTS_AVAILABLE = _GTTS
+except ImportError:
+    pass
+
+try:
+    from modules.tts.engines.capcut import CapCutTTSEngine
+    CAPCUT_TTS_AVAILABLE = True
 except ImportError:
     pass
 
@@ -137,6 +144,18 @@ class TTSService:
                 logger.info("Google TTS engine initialized")
             except Exception as e:
                 logger.warning(f"Failed to init gTTS: {e}")
+
+        # Try CapCut TTS
+        if CAPCUT_TTS_AVAILABLE:
+            try:
+                from modules.tts.engines.capcut import CapCutTTSEngine
+                engine = CapCutTTSEngine()
+                self._engines["capcut"] = engine
+                for voice in engine.list_voices():
+                    self._voices[voice.id] = voice
+                logger.info("CapCut TTS engine initialized")
+            except Exception as e:
+                logger.warning(f"Failed to init CapCut TTS: {e}")
 
         if not self._engines:
             logger.warning(

@@ -6,6 +6,7 @@ API endpoints for Text-to-Speech synthesis.
 
 import base64
 import logging
+import os
 import tempfile
 from pathlib import Path
 from typing import Optional
@@ -25,8 +26,28 @@ class TTSSynthesizeRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=5000, description="Text to synthesize")
     voice_id: str = Field(default="vi-VN-HoaiMyNeural", description="Voice ID to use")
     pitch: int = Field(default=0, ge=-12, le=12, description="Pitch adjustment in semitones (-12 to +12)")
-    speed: float = Field(default=1.0, ge=0.5, le=2.0, description="Speed multiplier (0.5 to 2.0)")
+    speed: float = Field(default=1.0, ge=0.5, le=1.5, description="Speed multiplier (0.5 to 1.5)")
     output_format: str = Field(default="mp3", description="Output format (mp3 or wav)")
+
+    # Time-based speed adjustment (optional)
+    target_duration_ms: Optional[int] = Field(
+        default=None,
+        ge=100,
+        le=60000,
+        description="Target duration in milliseconds. If set, speed will be auto-calculated to fit this duration."
+    )
+    min_speed: Optional[float] = Field(
+        default=None,
+        ge=0.3,
+        le=1.0,
+        description="Minimum speed limit when using target_duration_ms (default: no limit)"
+    )
+    max_speed: Optional[float] = Field(
+        default=None,
+        ge=1.0,
+        le=3.0,
+        description="Maximum speed limit when using target_duration_ms (default: no limit)"
+    )
 
 
 class VoiceResponse(BaseModel):
@@ -177,12 +198,64 @@ async def synthesize(request: TTSSynthesizeRequest):
             }
         )
 
-    # Create TTS request
+    # Determine speed - either direct speed value or calculate from target_duration_ms
+    final_speed = request.speed
+    calculated_speed = None
+    original_duration_ms = None
+    speed_clamped = False
+
+    if request.target_duration_ms:
+        # First, generate audio at normal speed (1.0) to get the natural duration
+        tts_request_normal = TTSRequest(
+            text=request.text,
+            voice_id=request.voice_id,
+            pitch=request.pitch,
+            speed=1.0,
+            output_format=request.output_format,
+        )
+        result_normal = await service.synthesize(tts_request_normal)
+
+        if not result_normal.success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail={
+                    "error": "synthesis_failed",
+                    "message": result_normal.error,
+                }
+            )
+
+        # Get duration of the normal-speed audio
+        from pydub import AudioSegment
+
+        # Save to temp file to read duration
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
+            tmp.write(result_normal.audio_data)
+            tmp_path = tmp.name
+
+        try:
+            audio = AudioSegment.from_mp3(tmp_path)
+            original_duration_ms = len(audio)
+        finally:
+            os.unlink(tmp_path)
+
+        # Calculate required speed: speed = original_duration / target_duration
+        calculated_speed = original_duration_ms / request.target_duration_ms
+
+        # Apply speed limits if specified
+        final_speed = calculated_speed
+        if request.min_speed and final_speed < request.min_speed:
+            final_speed = request.min_speed
+            speed_clamped = True
+        if request.max_speed and final_speed > request.max_speed:
+            final_speed = request.max_speed
+            speed_clamped = True
+
+    # Create TTS request with final speed
     tts_request = TTSRequest(
         text=request.text,
         voice_id=request.voice_id,
         pitch=request.pitch,
-        speed=request.speed,
+        speed=final_speed,
         output_format=request.output_format,
     )
 
@@ -201,7 +274,8 @@ async def synthesize(request: TTSSynthesizeRequest):
     # Encode audio as base64
     audio_base64 = base64.b64encode(result.audio_data).decode("utf-8")
 
-    return JSONResponse(content={
+    # Build response
+    response_data = {
         "success": True,
         "audio": audio_base64,
         "format": result.format,
@@ -210,9 +284,23 @@ async def synthesize(request: TTSSynthesizeRequest):
         "voice_name": result.voice_name,
         "engine": result.engine,
         "pitch": result.pitch,
-        "speed": result.speed,
+        "speed": final_speed,
         "processing_time_ms": result.processing_time_ms,
-    })
+    }
+
+    # Add time adjustment info if used
+    if request.target_duration_ms:
+        response_data["time_adjust"] = {
+            "target_duration_ms": request.target_duration_ms,
+            "original_duration_ms": original_duration_ms,
+            "calculated_speed": round(calculated_speed, 3) if calculated_speed else None,
+            "final_speed": round(final_speed, 3),
+            "speed_clamped": speed_clamped,
+            "min_speed": request.min_speed,
+            "max_speed": request.max_speed,
+        }
+
+    return JSONResponse(content=response_data)
 
 
 @router.post("/synthesize/audio", tags=["TTS"])

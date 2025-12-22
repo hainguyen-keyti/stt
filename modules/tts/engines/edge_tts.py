@@ -34,7 +34,7 @@ except ImportError:
 VIETNAMESE_VOICES = [
     VoiceInfo(
         id="vi-VN-HoaiMyNeural",
-        name="Hoai My",
+        name="Edge Nữ",
         language="vi-VN",
         gender=VoiceGender.FEMALE,
         engine="edge",
@@ -43,7 +43,7 @@ VIETNAMESE_VOICES = [
     ),
     VoiceInfo(
         id="vi-VN-NamMinhNeural",
-        name="Nam Minh",
+        name="Edge Nam",
         language="vi-VN",
         gender=VoiceGender.MALE,
         engine="edge",
@@ -191,7 +191,13 @@ class EdgeTTSEngine(TTSEngine):
 
             # Apply speed change
             if speed != 1.0:
-                audio = audio.speedup(playback_speed=speed)
+                # Change playback speed by modifying frame_rate
+                # speed < 1.0 = slower (longer audio), speed > 1.0 = faster (shorter audio)
+                new_frame_rate = int(audio.frame_rate * speed)
+                audio = audio._spawn(
+                    audio.raw_data,
+                    overrides={"frame_rate": new_frame_rate}
+                )
 
             # Save to new file
             output_path = audio_path.replace(".mp3", "_processed.mp3")

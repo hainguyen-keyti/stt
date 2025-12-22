@@ -34,7 +34,7 @@ except ImportError:
 VIETNAMESE_VOICES = [
     VoiceInfo(
         id="gtts-vi",
-        name="Google Vietnamese",
+        name="gTTS Nữ",
         language="vi",
         gender=VoiceGender.FEMALE,
         engine="gtts",
@@ -192,7 +192,13 @@ class GoogleTTSEngine(TTSEngine):
 
             # Apply speed change
             if speed != 1.0:
-                audio = audio.speedup(playback_speed=speed)
+                # Change playback speed by modifying frame_rate
+                # speed < 1.0 = slower (longer audio), speed > 1.0 = faster (shorter audio)
+                new_frame_rate = int(audio.frame_rate * speed)
+                audio = audio._spawn(
+                    audio.raw_data,
+                    overrides={"frame_rate": new_frame_rate}
+                )
 
             # Save to new file
             output_path = audio_path.replace(".mp3", "_processed.mp3")

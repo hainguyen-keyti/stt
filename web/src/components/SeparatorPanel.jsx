@@ -32,59 +32,6 @@ const MODELS = [
   },
 ]
 
-// Preset configurations
-const PRESETS = [
-  {
-    id: 'karaoke',
-    name: 'Karaoke (Xóa Vocal)',
-    description: 'Xóa hoàn toàn giọng hát, chỉ giữ nhạc nền',
-    vocal_volume: 0.0,
-    instrumental_volume: 1.0,
-  },
-  {
-    id: 'vocal_only',
-    name: 'Vocal Only (Xóa Nhạc)',
-    description: 'Chỉ giữ giọng hát, xóa nhạc nền',
-    vocal_volume: 1.0,
-    instrumental_volume: 0.0,
-  },
-  {
-    id: 'reduce_vocal',
-    name: 'Giảm Vocal 50%',
-    description: 'Giảm âm lượng giọng hát xuống còn 50%',
-    vocal_volume: 0.5,
-    instrumental_volume: 1.0,
-  },
-  {
-    id: 'reduce_instrumental',
-    name: 'Giảm Nhạc 50%',
-    description: 'Giảm âm lượng nhạc nền xuống còn 50%',
-    vocal_volume: 1.0,
-    instrumental_volume: 0.5,
-  },
-  {
-    id: 'boost_vocal',
-    name: 'Tăng Vocal 50%',
-    description: 'Tăng âm lượng giọng hát lên 150%',
-    vocal_volume: 1.5,
-    instrumental_volume: 1.0,
-  },
-  {
-    id: 'boost_instrumental',
-    name: 'Tăng Nhạc 50%',
-    description: 'Tăng âm lượng nhạc nền lên 150%',
-    vocal_volume: 1.0,
-    instrumental_volume: 1.5,
-  },
-  {
-    id: 'custom',
-    name: 'Tùy chỉnh',
-    description: 'Tự điều chỉnh các thông số',
-    vocal_volume: 1.0,
-    instrumental_volume: 1.0,
-  },
-]
-
 const POLL_INTERVAL = 5000 // 5 seconds
 
 function SeparatorPanel() {
@@ -98,9 +45,6 @@ function SeparatorPanel() {
   const [jobStatus, setJobStatus] = useState(null)
   const [progress, setProgress] = useState(0)
   const pollIntervalRef = useRef(null)
-
-  // Preset state
-  const [selectedPreset, setSelectedPreset] = useState('karaoke')
 
   // Settings
   const [options, setOptions] = useState({
@@ -151,19 +95,6 @@ function SeparatorPanel() {
     }, POLL_INTERVAL)
   }
 
-  const handlePresetChange = (presetId) => {
-    setSelectedPreset(presetId)
-    const preset = PRESETS.find(p => p.id === presetId)
-    if (preset && presetId !== 'custom') {
-      setOptions(prev => ({
-        ...prev,
-        vocal_volume: preset.vocal_volume,
-        instrumental_volume: preset.instrumental_volume,
-      }))
-    }
-    setResult(null)
-  }
-
   const handleFileChange = (e) => {
     setFile(e.target.files[0])
     setError(null)
@@ -175,10 +106,6 @@ function SeparatorPanel() {
 
   const handleOptionChange = (key, value) => {
     setOptions(prev => ({ ...prev, [key]: value }))
-    // Switch to custom preset when manually changing values
-    if (key === 'vocal_volume' || key === 'instrumental_volume') {
-      setSelectedPreset('custom')
-    }
     setResult(null)
   }
 
@@ -247,32 +174,6 @@ function SeparatorPanel() {
       </div>
 
       <form onSubmit={handleSubmit} className="form">
-        {/* Preset Selection */}
-        <div className="form-section">
-          <h3>Quick Presets</h3>
-          <div className="preset-grid">
-            {PRESETS.map(preset => (
-              <label
-                key={preset.id}
-                className={`preset-card ${selectedPreset === preset.id ? 'selected' : ''}`}
-              >
-                <input
-                  type="radio"
-                  name="preset"
-                  value={preset.id}
-                  checked={selectedPreset === preset.id}
-                  onChange={(e) => handlePresetChange(e.target.value)}
-                  disabled={loading}
-                />
-                <div className="preset-content">
-                  <div className="preset-name">{preset.name}</div>
-                  <div className="preset-desc">{preset.description}</div>
-                </div>
-              </label>
-            ))}
-          </div>
-        </div>
-
         {/* File Upload */}
         <div className="form-section">
           <h3>Audio File</h3>
