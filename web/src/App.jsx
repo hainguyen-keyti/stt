@@ -4,6 +4,7 @@ import SeparatorPanel from './components/SeparatorPanel'
 import TTSPanel from './components/TTSPanel'
 import MetricsPanel from './components/MetricsPanel'
 import HealthPanel from './components/HealthPanel'
+import APIDocsPanel from './components/APIDocsPanel'
 import './styles/App.css'
 
 function App() {
@@ -13,6 +14,7 @@ function App() {
     { id: 'subtitle', label: 'Subtitle', icon: 'SUB' },
     { id: 'separator', label: 'Separator', icon: 'MIX' },
     { id: 'tts', label: 'TTS', icon: 'TTS' },
+    { id: 'api', label: 'API Docs', icon: 'API' },
     { id: 'metrics', label: 'Metrics', icon: 'MTR' },
     { id: 'health', label: 'Health', icon: 'SYS' },
   ]
@@ -41,6 +43,7 @@ function App() {
         {activeTab === 'subtitle' && <SubtitlePanel />}
         {activeTab === 'separator' && <SeparatorPanel />}
         {activeTab === 'tts' && <TTSPanel />}
+        {activeTab === 'api' && <APIDocsPanel />}
         {activeTab === 'metrics' && <MetricsPanel />}
         {activeTab === 'health' && <HealthPanel />}
       </main>
