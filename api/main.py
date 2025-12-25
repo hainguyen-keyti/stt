@@ -4,6 +4,10 @@ Professional Subtitle Generation Service v4.0 - FastAPI Application
 Main application entry point with core configuration and routing.
 """
 
+# Load environment variables FIRST before any other imports
+from dotenv import load_dotenv
+load_dotenv()
+
 import os
 from pathlib import Path
 

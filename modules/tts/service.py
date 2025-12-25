@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 EDGE_TTS_AVAILABLE = False
 GTTS_AVAILABLE = False
 CAPCUT_TTS_AVAILABLE = False
+VIVIBE_TTS_AVAILABLE = False
 
 try:
     from modules.tts.engines.edge_tts import EdgeTTSEngine, EDGE_TTS_AVAILABLE as _EDGE
@@ -41,6 +42,12 @@ except ImportError:
 try:
     from modules.tts.engines.capcut import CapCutTTSEngine
     CAPCUT_TTS_AVAILABLE = True
+except ImportError:
+    pass
+
+try:
+    from modules.tts.engines.vivibe import VivibeTTSEngine
+    VIVIBE_TTS_AVAILABLE = True
 except ImportError:
     pass
 
@@ -156,6 +163,18 @@ class TTSService:
                 logger.info("CapCut TTS engine initialized")
             except Exception as e:
                 logger.warning(f"Failed to init CapCut TTS: {e}")
+
+        # Try Vivibe TTS (requires token, initialized but not active until token is set)
+        if VIVIBE_TTS_AVAILABLE:
+            try:
+                from modules.tts.engines.vivibe import VivibeTTSEngine
+                engine = VivibeTTSEngine()
+                self._engines["vivibe"] = engine
+                for voice in engine.list_voices():
+                    self._voices[voice.id] = voice
+                logger.info("Vivibe TTS engine initialized (requires token)")
+            except Exception as e:
+                logger.warning(f"Failed to init Vivibe TTS: {e}")
 
         if not self._engines:
             logger.warning(
@@ -275,6 +294,22 @@ class TTSService:
     def is_available(self) -> bool:
         """Check if any TTS engine is available."""
         return len(self._engines) > 0
+
+    def set_vivibe_token(self, token: str):
+        """
+        Set Vivibe TTS authentication token.
+
+        Args:
+            token: Bearer token for Vivibe/LucyLab API
+        """
+        if "vivibe" in self._engines:
+            engine = self._engines["vivibe"]
+            engine.set_token(token)
+            logger.info("Vivibe TTS token configured")
+
+    def get_vivibe_engine(self) -> Optional[TTSEngine]:
+        """Get Vivibe TTS engine instance."""
+        return self._engines.get("vivibe")
 
     def cleanup(self):
         """Clean up resources."""

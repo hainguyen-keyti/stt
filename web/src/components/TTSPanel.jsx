@@ -160,7 +160,7 @@ function TTSPanel() {
               ) : (
                 voices.map(voice => (
                   <option key={voice.id} value={voice.id}>
-                    {voice.name} ({voice.gender === 'female' ? 'Nữ' : 'Nam'}) - {voice.engine === 'capcut' ? 'CapCut TTS' : voice.engine === 'edge' ? 'Edge TTS' : 'Google TTS'}
+                    {voice.engine === 'capcut' ? 'CapCut' : voice.engine === 'edge' ? 'Edge' : voice.engine === 'vivibe' ? 'Vivibe' : 'gTTS'} - {voice.gender === 'female' ? 'Nữ' : 'Nam'}
                   </option>
                 ))
               )}
@@ -363,7 +363,7 @@ function TTSPanel() {
             </div>
             <div className="stat-item">
               <span className="stat-label">Engine</span>
-              <span className="stat-value">{result.engine === 'capcut' ? 'CapCut TTS' : result.engine === 'edge' ? 'Edge TTS' : 'Google TTS'}</span>
+              <span className="stat-value">{result.engine === 'capcut' ? 'CapCut TTS' : result.engine === 'edge' ? 'Edge TTS' : result.engine === 'vivibe' ? 'Vivibe TTS' : 'Google TTS'}</span>
             </div>
             <div className="stat-item">
               <span className="stat-label">Pitch</span>

@@ -49,6 +49,12 @@ class TTSSynthesizeRequest(BaseModel):
         description="Maximum speed limit when using target_duration_ms (default: no limit)"
     )
 
+    # Vivibe-specific options
+    vivibe_token: Optional[str] = Field(
+        default=None,
+        description="Bearer token for Vivibe TTS authentication (required for Vivibe voices)"
+    )
+
 
 class VoiceResponse(BaseModel):
     """Voice information response."""
@@ -184,6 +190,10 @@ async def synthesize(request: TTSSynthesizeRequest):
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="No TTS engine available. Install edge-tts or gTTS."
         )
+
+    # Configure Vivibe token if provided
+    if request.vivibe_token:
+        service.set_vivibe_token(request.vivibe_token)
 
     # Validate voice exists
     voice = service.get_voice(request.voice_id)
