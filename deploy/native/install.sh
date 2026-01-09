@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # 7KT-AI Native Installation Script (Linux/Mac)
-# Auto-detects hardware and installs optimal dependencies
+# Downloads Python locally - no system installation required
 # =============================================================================
 
 set -e
@@ -15,29 +15,19 @@ OS=$(uname -s)
 ARCH=$(uname -m)
 echo "OS: $OS ($ARCH)"
 
+# Save original directory
+ORIGINAL_DIR="$(pwd)"
+
+# Set install directory
+INSTALL_DIR="$HOME/stt"
+
 # =============================================================================
-# Check Prerequisites
+# Check basic prerequisites (Git, FFmpeg)
 # =============================================================================
 echo ""
 echo "Checking prerequisites..."
 
 MISSING=""
-
-# Check Python 3.10+
-if command -v python3 &> /dev/null; then
-    PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-    PYTHON_MAJOR=$(echo $PYTHON_VERSION | cut -d. -f1)
-    PYTHON_MINOR=$(echo $PYTHON_VERSION | cut -d. -f2)
-    if [ "$PYTHON_MAJOR" -lt 3 ] || ([ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -lt 10 ]); then
-        echo "[X] Python: $PYTHON_VERSION (need 3.10+)"
-        MISSING="$MISSING python"
-    else
-        echo "[OK] Python: $PYTHON_VERSION"
-    fi
-else
-    echo "[X] Python: not found"
-    MISSING="$MISSING python"
-fi
 
 # Check Git
 if command -v git &> /dev/null; then
@@ -78,34 +68,26 @@ if [ -n "$MISSING" ]; then
             echo '  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
             echo ""
         fi
-        echo "  brew install python@3.11 git ffmpeg node"
+        echo "  brew install git ffmpeg node"
         echo ""
     elif [ "$OS" = "Linux" ]; then
         echo "Install on Ubuntu/Debian:"
         echo "  sudo apt update"
-        echo "  sudo apt install python3.11 python3.11-venv git ffmpeg nodejs npm"
-        echo ""
-        echo "Install on CentOS/RHEL:"
-        echo "  sudo yum install python3.11 git ffmpeg nodejs npm"
+        echo "  sudo apt install git ffmpeg nodejs npm"
         echo ""
     fi
 
-    echo "After installing, run this script again:"
-    echo '  curl -fsSL https://raw.githubusercontent.com/hainguyen-keyti/stt/master/deploy/native/install.sh | bash'
+    echo "After installing, run this script again."
     exit 1
 fi
 
 echo ""
 echo "All prerequisites OK!"
 
-# Save original directory (where user runs script from)
-ORIGINAL_DIR="$(pwd)"
-
 # =============================================================================
 # Clone Repository
 # =============================================================================
 REPO_URL="https://github.com/hainguyen-keyti/stt.git"
-INSTALL_DIR="$HOME/stt"
 
 echo ""
 if [ -d "$INSTALL_DIR" ]; then
@@ -119,20 +101,65 @@ else
 fi
 
 # =============================================================================
-# Installation
+# Download standalone Python (no system install required)
 # =============================================================================
+PYTHON_VERSION="3.11.9"
+PYTHON_DIR="$INSTALL_DIR/.python"
 
-# Create venv if not exists
+if [ -f "$PYTHON_DIR/bin/python3" ]; then
+    echo ""
+    echo "Using existing Python installation..."
+    PYTHON_BIN="$PYTHON_DIR/bin/python3"
+else
+    echo ""
+    echo "Downloading Python $PYTHON_VERSION (standalone, local only)..."
+
+    # Determine download URL based on OS and architecture
+    if [ "$OS" = "Darwin" ]; then
+        if [ "$ARCH" = "arm64" ]; then
+            PYTHON_URL="https://github.com/indygreg/python-build-standalone/releases/download/20240713/cpython-${PYTHON_VERSION}+20240713-aarch64-apple-darwin-install_only.tar.gz"
+        else
+            PYTHON_URL="https://github.com/indygreg/python-build-standalone/releases/download/20240713/cpython-${PYTHON_VERSION}+20240713-x86_64-apple-darwin-install_only.tar.gz"
+        fi
+    elif [ "$OS" = "Linux" ]; then
+        if [ "$ARCH" = "x86_64" ]; then
+            PYTHON_URL="https://github.com/indygreg/python-build-standalone/releases/download/20240713/cpython-${PYTHON_VERSION}+20240713-x86_64-unknown-linux-gnu-install_only.tar.gz"
+        elif [ "$ARCH" = "aarch64" ]; then
+            PYTHON_URL="https://github.com/indygreg/python-build-standalone/releases/download/20240713/cpython-${PYTHON_VERSION}+20240713-aarch64-unknown-linux-gnu-install_only.tar.gz"
+        fi
+    fi
+
+    if [ -z "$PYTHON_URL" ]; then
+        echo "ERROR: Unsupported platform: $OS $ARCH"
+        exit 1
+    fi
+
+    # Download and extract
+    mkdir -p "$PYTHON_DIR"
+    echo "Downloading from: $PYTHON_URL"
+    curl -L "$PYTHON_URL" | tar xz -C "$PYTHON_DIR" --strip-components=1
+
+    PYTHON_BIN="$PYTHON_DIR/bin/python3"
+    echo "Python installed to: $PYTHON_DIR"
+fi
+
+echo "Python: $($PYTHON_BIN --version)"
+
+# =============================================================================
+# Create virtual environment with local Python
+# =============================================================================
 if [ ! -d "venv" ]; then
     echo ""
     echo "Creating virtual environment..."
-    python3 -m venv venv
+    "$PYTHON_BIN" -m venv venv
 fi
 
 source venv/bin/activate
 pip install --upgrade pip
 
+# =============================================================================
 # Detect hardware and install PyTorch
+# =============================================================================
 echo ""
 echo "Detecting hardware..."
 
@@ -147,7 +174,9 @@ else
     pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 fi
 
+# =============================================================================
 # Install dependencies
+# =============================================================================
 echo ""
 echo "Installing dependencies..."
 pip install -r requirements.txt
@@ -161,7 +190,9 @@ else
     pip install "audio-separator[cpu]" soundfile
 fi
 
-# Build frontend
+# =============================================================================
+# Build frontend (optional)
+# =============================================================================
 if command -v npm &> /dev/null; then
     echo ""
     echo "Building frontend..."
@@ -171,7 +202,9 @@ else
     echo "Skipping frontend build (Node.js not installed)"
 fi
 
-# Copy .env from original directory if provided, otherwise use .env.example
+# =============================================================================
+# Copy .env
+# =============================================================================
 if [ -f "$ORIGINAL_DIR/.env" ]; then
     cp "$ORIGINAL_DIR/.env" .env
     echo "Copied .env from $ORIGINAL_DIR"
@@ -194,4 +227,7 @@ echo "  ./start.sh"
 echo ""
 echo "Web UI:   http://localhost:8000"
 echo "API Docs: http://localhost:8000/docs"
+echo ""
+echo "To uninstall completely, just delete:"
+echo "  rm -rf $INSTALL_DIR"
 echo ""

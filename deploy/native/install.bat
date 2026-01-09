@@ -1,36 +1,34 @@
 @echo off
 REM =============================================================================
 REM 7KT-AI Native Installation Script (Windows)
-REM Auto-detects hardware and installs optimal dependencies
+REM Downloads Python locally - no system installation required
 REM =============================================================================
+
+setlocal enabledelayedexpansion
 
 echo ==========================================
 echo 7KT-AI Native Installation
 echo ==========================================
 echo.
 
+REM Save original directory
+set ORIGINAL_DIR=%CD%
+set INSTALL_DIR=%USERPROFILE%\stt
+set PYTHON_VERSION=3.11.9
+
 REM =============================================================================
-REM Check Prerequisites
+REM Check basic prerequisites (Git, FFmpeg)
 REM =============================================================================
 echo Checking prerequisites...
 echo.
 
 set MISSING=
 
-REM Check Python
-python --version >nul 2>&1
-if %ERRORLEVEL% NEQ 0 (
-    echo [X] Python: not found
-    set MISSING=%MISSING% Python
-) else (
-    for /f "tokens=2 delims= " %%v in ('python --version 2^>^&1') do echo [OK] Python: %%v
-)
-
 REM Check Git
 git --version >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
     echo [X] Git: not found
-    set MISSING=%MISSING% Git
+    set MISSING=!MISSING! Git
 ) else (
     for /f "tokens=3 delims= " %%v in ('git --version 2^>^&1') do echo [OK] Git: %%v
 )
@@ -39,7 +37,7 @@ REM Check FFmpeg
 ffmpeg -version >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
     echo [X] FFmpeg: not found
-    set MISSING=%MISSING% FFmpeg
+    set MISSING=!MISSING! FFmpeg
 ) else (
     echo [OK] FFmpeg: installed
 )
@@ -53,30 +51,23 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 REM If missing prerequisites, show install instructions
-if not "%MISSING%"=="" (
+if not "!MISSING!"=="" (
     echo.
     echo ==========================================
-    echo Missing prerequisites:%MISSING%
+    echo Missing prerequisites:!MISSING!
     echo ==========================================
     echo.
-    echo Please install the following:
+    echo Please install:
     echo.
-    echo   Python 3.10+:  https://www.python.org/downloads/
-    echo                  [!] Check "Add Python to PATH" when installing
+    echo   Git:     https://git-scm.com/download/win
     echo.
-    echo   Git:           https://git-scm.com/download/win
-    echo.
-    echo   FFmpeg:        https://github.com/BtbN/FFmpeg-Builds/releases
-    echo                  Download ffmpeg-master-latest-win64-gpl.zip
-    echo                  Extract to C:\ffmpeg and add C:\ffmpeg\bin to PATH
-    echo.
-    echo   Node.js:       https://nodejs.org/ ^(optional^)
+    echo   FFmpeg:  https://github.com/BtbN/FFmpeg-Builds/releases
+    echo            Download ffmpeg-master-latest-win64-gpl.zip
+    echo            Extract to C:\ffmpeg and add C:\ffmpeg\bin to PATH
     echo.
     echo Or install with winget:
-    echo   winget install Python.Python.3.11
     echo   winget install Git.Git
     echo   winget install Gyan.FFmpeg
-    echo   winget install OpenJS.NodeJS
     echo.
     echo After installing, run this script again.
     pause
@@ -87,14 +78,9 @@ echo.
 echo All prerequisites OK!
 echo.
 
-REM Save original directory (where user runs script from)
-set ORIGINAL_DIR=%CD%
-
 REM =============================================================================
 REM Clone Repository
 REM =============================================================================
-set INSTALL_DIR=%USERPROFILE%\stt
-
 if exist "%INSTALL_DIR%" (
     echo Updating existing installation...
     cd /d "%INSTALL_DIR%"
@@ -106,14 +92,55 @@ if exist "%INSTALL_DIR%" (
 )
 
 REM =============================================================================
-REM Installation
+REM Download standalone Python (no system install required)
 REM =============================================================================
+set PYTHON_DIR=%INSTALL_DIR%\.python
+set PYTHON_BIN=%PYTHON_DIR%\python.exe
 
-REM Create virtual environment
+if exist "%PYTHON_BIN%" (
+    echo.
+    echo Using existing Python installation...
+) else (
+    echo.
+    echo Downloading Python %PYTHON_VERSION% ^(standalone, local only^)...
+
+    set PYTHON_URL=https://www.python.org/ftp/python/%PYTHON_VERSION%/python-%PYTHON_VERSION%-embed-amd64.zip
+    set PYTHON_ZIP=%TEMP%\python-embed.zip
+
+    REM Download Python embeddable
+    echo Downloading from: !PYTHON_URL!
+    powershell -Command "Invoke-WebRequest -Uri '!PYTHON_URL!' -OutFile '!PYTHON_ZIP!'"
+
+    REM Extract
+    mkdir "%PYTHON_DIR%" 2>nul
+    powershell -Command "Expand-Archive -Path '!PYTHON_ZIP!' -DestinationPath '%PYTHON_DIR%' -Force"
+    del "!PYTHON_ZIP!"
+
+    REM Enable pip for embeddable Python
+    echo Configuring Python...
+
+    REM Uncomment import site in python311._pth
+    powershell -Command "(Get-Content '%PYTHON_DIR%\python311._pth') -replace '#import site', 'import site' | Set-Content '%PYTHON_DIR%\python311._pth'"
+
+    REM Download get-pip.py
+    powershell -Command "Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile '%PYTHON_DIR%\get-pip.py'"
+
+    REM Install pip
+    "%PYTHON_BIN%" "%PYTHON_DIR%\get-pip.py" --no-warn-script-location
+
+    echo Python installed to: %PYTHON_DIR%
+)
+
+echo Python:
+"%PYTHON_BIN%" --version
+
+REM =============================================================================
+REM Create virtual environment with local Python
+REM =============================================================================
 if not exist "venv" (
     echo.
     echo Creating virtual environment...
-    python -m venv venv
+    "%PYTHON_BIN%" -m venv venv
 )
 
 call venv\Scripts\activate.bat
@@ -121,7 +148,9 @@ call venv\Scripts\activate.bat
 REM Upgrade pip
 python -m pip install --upgrade pip
 
-REM Detect NVIDIA GPU
+REM =============================================================================
+REM Detect NVIDIA GPU and install PyTorch
+REM =============================================================================
 echo.
 echo Detecting hardware...
 nvidia-smi >nul 2>&1
@@ -135,20 +164,19 @@ if %ERRORLEVEL% EQU 0 (
     set HAS_GPU=0
 )
 
-REM Install requirements
+REM =============================================================================
+REM Install dependencies
+REM =============================================================================
 echo.
 echo Installing dependencies...
 pip install -r requirements.txt
 
-REM Install ASR engines
 echo Installing ASR engines...
 pip install faster-whisper openai-whisper
 
-REM Install TTS engines
 echo Installing TTS engines...
 pip install edge-tts gTTS pydub
 
-REM Install audio separator
 echo Installing audio separator...
 if %HAS_GPU% EQU 1 (
     pip install "audio-separator[gpu]" soundfile
@@ -156,7 +184,9 @@ if %HAS_GPU% EQU 1 (
     pip install "audio-separator[cpu]" soundfile
 )
 
-REM Build frontend
+REM =============================================================================
+REM Build frontend (optional)
+REM =============================================================================
 echo.
 npm --version >nul 2>&1
 if %ERRORLEVEL% EQU 0 (
@@ -169,7 +199,9 @@ if %ERRORLEVEL% EQU 0 (
     echo Skipping frontend build ^(Node.js not installed^)
 )
 
-REM Copy .env from original directory if provided, otherwise use .env.example
+REM =============================================================================
+REM Copy .env
+REM =============================================================================
 if exist "%ORIGINAL_DIR%\.env" (
     copy "%ORIGINAL_DIR%\.env" .env
     echo Copied .env from %ORIGINAL_DIR%
@@ -194,6 +226,9 @@ echo   start.bat
 echo.
 echo Web UI:   http://localhost:8000
 echo API Docs: http://localhost:8000/docs
+echo.
+echo To uninstall completely, just delete:
+echo   rmdir /s /q %INSTALL_DIR%
 echo.
 
 pause

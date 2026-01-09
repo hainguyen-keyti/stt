@@ -1,30 +1,28 @@
 # 7KT-AI Native Installation
 
-Chạy trực tiếp trên máy (không qua Docker) để sử dụng **100% tài nguyên phần cứng**.
+Chạy trực tiếp trên máy để sử dụng **100% tài nguyên phần cứng**.
+
+**Python được tải tự động** - không cần cài Python trước!
 
 ## Yêu cầu
 
-- Python 3.10+
 - Git
-- Node.js 18+ (optional, cho web UI)
 - FFmpeg
+- Node.js 18+ (optional, cho web UI)
+
+**Không cần cài Python** - script sẽ tự tải Python 3.11 vào thư mục project.
 
 ## Cài đặt nhanh
 
 ### Linux/Mac
-
 ```bash
-curl -fsSL https://raw.githubusercontent.com/hainguyen-keyti/stt/master/deploy/native/install.sh | bash
-```
-
-Hoặc:
-```bash
+# Tải và chạy
+curl -fsSL https://raw.githubusercontent.com/hainguyen-keyti/stt/master/deploy/native/install.sh -o install.sh
 chmod +x install.sh
 ./install.sh
 ```
 
 ### Windows
-
 1. Download `install.bat`
 2. Double-click để chạy
 
@@ -56,6 +54,20 @@ start.bat
 | Linux + NVIDIA | CUDA | Tốt nhất |
 | Linux + AMD | ROCm | Tốt |
 | Không có GPU | CPU | Chậm hơn |
+
+## Gỡ cài đặt
+
+Xóa hoàn toàn (bao gồm cả Python):
+
+### Linux/Mac
+```bash
+rm -rf ~/stt
+```
+
+### Windows
+```batch
+rmdir /s /q %USERPROFILE%\stt
+```
 
 ## Cập nhật
 
