@@ -1,0 +1,101 @@
+# =============================================================================
+# Docker Compose for 7KT-AI Service (Pre-built image from Docker Hub)
+# Supports both CPU and GPU deployments
+# =============================================================================
+#
+# Usage:
+#   CPU mode:  docker-compose up -d
+#   GPU mode:  docker-compose --profile gpu up -d
+#
+# =============================================================================
+
+version: '3.8'
+
+services:
+  # ===========================================================================
+  # CPU Service - Default
+  # ===========================================================================
+  stt:
+    image: keytikontum/7kt-ai:latest
+    container_name: 7kt-ai
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - whisper-cache:/root/.cache/whisper
+      - huggingface-cache:/root/.cache/huggingface
+      - torch-cache:/root/.cache/torch
+      - ./uploads:/app/uploads
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - WHISPER_CACHE_DIR=/root/.cache/whisper
+      - HF_HOME=/root/.cache/huggingface
+      - OMP_NUM_THREADS=0
+      - MKL_NUM_THREADS=0
+    deploy:
+      resources:
+        limits:
+          memory: 16G
+        reservations:
+          memory: 4G
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 3
+
+  # ===========================================================================
+  # GPU Service - NVIDIA CUDA
+  # ===========================================================================
+  stt-gpu:
+    profiles:
+      - gpu
+    image: keytikontum/7kt-ai:latest
+    container_name: 7kt-ai-gpu
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - whisper-cache:/root/.cache/whisper
+      - huggingface-cache:/root/.cache/huggingface
+      - torch-cache:/root/.cache/torch
+      - ./uploads:/app/uploads
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - WHISPER_CACHE_DIR=/root/.cache/whisper
+      - HF_HOME=/root/.cache/huggingface
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+        limits:
+          memory: 32G
+        reservations:
+          memory: 8G
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 3
+
+volumes:
+  whisper-cache:
+    name: 7kt-whisper-cache
+  huggingface-cache:
+    name: 7kt-huggingface-cache
+  torch-cache:
+    name: 7kt-torch-cache

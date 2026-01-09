@@ -436,9 +436,12 @@ def get_recommended_batch_size(model_size: str = "base") -> int:
         return min(batch_size, 4)  # CPU
 
 
-def get_num_workers() -> int:
+def get_num_workers(device: str = None) -> int:
     """
     Get optimal number of workers for data loading based on hardware.
+
+    Args:
+        device: Optional device override. If None, auto-detects.
 
     Returns:
         Recommended number of workers
@@ -446,7 +449,8 @@ def get_num_workers() -> int:
     import multiprocessing
     cpu_count = multiprocessing.cpu_count()
 
-    device = get_optimal_device()
+    if device is None:
+        device = get_optimal_device()
 
     if device == "cuda":
         # For CUDA, use fewer workers to avoid CPU bottleneck
@@ -603,6 +607,9 @@ def get_full_hardware_info() -> Dict[str, Any]:
     Returns:
         Dict with all hardware details
     """
+    # Get device once to avoid repeated detection/logging
+    device = get_optimal_device()
+
     return {
         "system": get_system_info(),
         "cpu": get_cpu_info(),
@@ -611,9 +618,9 @@ def get_full_hardware_info() -> Dict[str, Any]:
         "gpu": get_gpu_info(),
         "gpu_memory": get_vram_info() if is_gpu_available() else None,
         "optimal_config": {
-            "device": get_optimal_device(),
-            "compute_type": get_optimal_compute_type(),
-            "num_workers": get_num_workers(),
+            "device": device,
+            "compute_type": get_optimal_compute_type(device),
+            "num_workers": get_num_workers(device),
         },
     }
 
@@ -674,10 +681,14 @@ def print_hardware_summary():
 
     logger.info("-" * 60)
 
-    # Optimal Configuration
+    # Optimal Configuration - get device once to avoid repeated logging
+    device = get_optimal_device()
+    compute_type = get_optimal_compute_type(device)
+    workers = get_num_workers(device)
+
     logger.info("OPTIMAL CONFIGURATION:")
-    logger.info(f"  Device: {get_optimal_device()}")
-    logger.info(f"  Compute Type: {get_optimal_compute_type()}")
-    logger.info(f"  Workers: {get_num_workers()}")
+    logger.info(f"  Device: {device}")
+    logger.info(f"  Compute Type: {compute_type}")
+    logger.info(f"  Workers: {workers}")
 
     logger.info("=" * 60)
