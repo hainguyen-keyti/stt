@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # 7KT-AI Native Installation Script (Linux/Mac)
-# Downloads Python locally - no system installation required
+# Downloads everything locally - no system installation required
 # =============================================================================
 
 set -e
@@ -20,101 +20,103 @@ ORIGINAL_DIR="$(pwd)"
 
 # Set install directory
 INSTALL_DIR="$HOME/stt"
+TOOLS_DIR="$INSTALL_DIR/.tools"
+
+# Create directories
+mkdir -p "$INSTALL_DIR"
+mkdir -p "$TOOLS_DIR"
+
+cd "$INSTALL_DIR"
 
 # =============================================================================
-# Check basic prerequisites (Git, FFmpeg)
+# Download Git (portable) if not available
 # =============================================================================
-echo ""
-echo "Checking prerequisites..."
-
-MISSING=""
-
-# Check Git
-if command -v git &> /dev/null; then
-    echo "[OK] Git: $(git --version | cut -d' ' -f3)"
-else
-    echo "[X] Git: not found"
-    MISSING="$MISSING git"
-fi
-
-# Check FFmpeg
-if command -v ffmpeg &> /dev/null; then
-    echo "[OK] FFmpeg: installed"
-else
-    echo "[X] FFmpeg: not found"
-    MISSING="$MISSING ffmpeg"
-fi
-
-# Check Node.js (optional)
-if command -v npm &> /dev/null; then
-    echo "[OK] Node.js: $(node --version 2>/dev/null || echo 'installed')"
-else
-    echo "[!] Node.js: not found (optional, for web UI)"
-fi
-
-# If missing prerequisites, show install instructions
-if [ -n "$MISSING" ]; then
-    echo ""
-    echo "=========================================="
-    echo "Missing prerequisites:$MISSING"
-    echo "=========================================="
-    echo ""
-
+download_git() {
     if [ "$OS" = "Darwin" ]; then
-        echo "Install on macOS with Homebrew:"
-        echo ""
-        if ! command -v brew &> /dev/null; then
-            echo "  # First install Homebrew:"
-            echo '  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
-            echo ""
-        fi
-        echo "  brew install git ffmpeg node"
-        echo ""
+        # macOS - Git comes with Xcode Command Line Tools, prompt to install
+        echo "Git not found. Installing Xcode Command Line Tools..."
+        xcode-select --install 2>/dev/null || true
+        echo "Please complete the installation dialog, then run this script again."
+        exit 1
     elif [ "$OS" = "Linux" ]; then
-        echo "Install on Ubuntu/Debian:"
-        echo "  sudo apt update"
-        echo "  sudo apt install git ffmpeg nodejs npm"
-        echo ""
+        # Linux - download portable git
+        echo "Downloading portable Git..."
+        GIT_VERSION="2.43.0"
+        if [ "$ARCH" = "x86_64" ]; then
+            GIT_URL="https://github.com/git/git/archive/refs/tags/v${GIT_VERSION}.tar.gz"
+        fi
+        # For Linux, git is usually available or easy to install
+        echo "Please install git using your package manager:"
+        echo "  Ubuntu/Debian: sudo apt install git"
+        echo "  CentOS/RHEL: sudo yum install git"
+        exit 1
+    fi
+}
+
+# =============================================================================
+# Download FFmpeg (portable)
+# =============================================================================
+download_ffmpeg() {
+    FFMPEG_DIR="$TOOLS_DIR/ffmpeg"
+
+    if [ -f "$FFMPEG_DIR/ffmpeg" ]; then
+        echo "[OK] FFmpeg: already downloaded"
+        return
     fi
 
-    echo "After installing, run this script again."
-    exit 1
-fi
+    echo "Downloading FFmpeg (portable)..."
+    mkdir -p "$FFMPEG_DIR"
 
-echo ""
-echo "All prerequisites OK!"
+    if [ "$OS" = "Darwin" ]; then
+        if [ "$ARCH" = "arm64" ]; then
+            FFMPEG_URL="https://evermeet.cx/ffmpeg/getrelease/ffmpeg/zip"
+            FFPROBE_URL="https://evermeet.cx/ffmpeg/getrelease/ffprobe/zip"
+        else
+            FFMPEG_URL="https://evermeet.cx/ffmpeg/getrelease/ffmpeg/zip"
+            FFPROBE_URL="https://evermeet.cx/ffmpeg/getrelease/ffprobe/zip"
+        fi
+
+        # Download ffmpeg
+        curl -L "$FFMPEG_URL" -o "$FFMPEG_DIR/ffmpeg.zip"
+        unzip -o "$FFMPEG_DIR/ffmpeg.zip" -d "$FFMPEG_DIR"
+        rm "$FFMPEG_DIR/ffmpeg.zip"
+
+        # Download ffprobe
+        curl -L "$FFPROBE_URL" -o "$FFMPEG_DIR/ffprobe.zip"
+        unzip -o "$FFMPEG_DIR/ffprobe.zip" -d "$FFMPEG_DIR"
+        rm "$FFMPEG_DIR/ffprobe.zip"
+
+        chmod +x "$FFMPEG_DIR/ffmpeg" "$FFMPEG_DIR/ffprobe"
+
+    elif [ "$OS" = "Linux" ]; then
+        if [ "$ARCH" = "x86_64" ]; then
+            FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz"
+        elif [ "$ARCH" = "aarch64" ]; then
+            FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz"
+        fi
+
+        curl -L "$FFMPEG_URL" | tar xJ -C "$FFMPEG_DIR" --strip-components=1
+    fi
+
+    echo "FFmpeg installed to: $FFMPEG_DIR"
+}
 
 # =============================================================================
-# Clone Repository
+# Download Python (standalone)
 # =============================================================================
-REPO_URL="https://github.com/hainguyen-keyti/stt.git"
+download_python() {
+    PYTHON_VERSION="3.11.9"
+    PYTHON_DIR="$TOOLS_DIR/python"
 
-echo ""
-if [ -d "$INSTALL_DIR" ]; then
-    echo "Updating existing installation..."
-    cd "$INSTALL_DIR"
-    git pull
-else
-    echo "Cloning repository..."
-    git clone "$REPO_URL" "$INSTALL_DIR"
-    cd "$INSTALL_DIR"
-fi
+    if [ -f "$PYTHON_DIR/bin/python3" ]; then
+        echo "[OK] Python: already downloaded"
+        PYTHON_BIN="$PYTHON_DIR/bin/python3"
+        return
+    fi
 
-# =============================================================================
-# Download standalone Python (no system install required)
-# =============================================================================
-PYTHON_VERSION="3.11.9"
-PYTHON_DIR="$INSTALL_DIR/.python"
+    echo "Downloading Python $PYTHON_VERSION (standalone)..."
+    mkdir -p "$PYTHON_DIR"
 
-if [ -f "$PYTHON_DIR/bin/python3" ]; then
-    echo ""
-    echo "Using existing Python installation..."
-    PYTHON_BIN="$PYTHON_DIR/bin/python3"
-else
-    echo ""
-    echo "Downloading Python $PYTHON_VERSION (standalone, local only)..."
-
-    # Determine download URL based on OS and architecture
     if [ "$OS" = "Darwin" ]; then
         if [ "$ARCH" = "arm64" ]; then
             PYTHON_URL="https://github.com/indygreg/python-build-standalone/releases/download/20240713/cpython-${PYTHON_VERSION}+20240713-aarch64-apple-darwin-install_only.tar.gz"
@@ -134,19 +136,64 @@ else
         exit 1
     fi
 
-    # Download and extract
-    mkdir -p "$PYTHON_DIR"
-    echo "Downloading from: $PYTHON_URL"
     curl -L "$PYTHON_URL" | tar xz -C "$PYTHON_DIR" --strip-components=1
-
     PYTHON_BIN="$PYTHON_DIR/bin/python3"
     echo "Python installed to: $PYTHON_DIR"
-fi
-
-echo "Python: $($PYTHON_BIN --version)"
+}
 
 # =============================================================================
-# Create virtual environment with local Python
+# Check/Download tools
+# =============================================================================
+echo ""
+echo "Checking/downloading tools..."
+
+# Check Git (required for cloning, can't be portable easily)
+if command -v git &> /dev/null; then
+    echo "[OK] Git: $(git --version | cut -d' ' -f3)"
+else
+    download_git
+fi
+
+# Download FFmpeg
+download_ffmpeg
+export PATH="$TOOLS_DIR/ffmpeg:$PATH"
+echo "[OK] FFmpeg: downloaded"
+
+# Download Python
+download_python
+echo "[OK] Python: $($PYTHON_BIN --version 2>&1 | cut -d' ' -f2)"
+
+# Check Node.js (optional)
+if command -v npm &> /dev/null; then
+    echo "[OK] Node.js: $(node --version 2>/dev/null || echo 'installed')"
+else
+    echo "[!] Node.js: not found (optional, for web UI)"
+fi
+
+echo ""
+echo "All tools ready!"
+
+# =============================================================================
+# Clone/Update Repository
+# =============================================================================
+REPO_URL="https://github.com/hainguyen-keyti/stt.git"
+
+echo ""
+if [ -d "$INSTALL_DIR/.git" ]; then
+    echo "Updating repository..."
+    git pull
+else
+    echo "Cloning repository..."
+    # Clone to temp and move contents
+    TEMP_DIR=$(mktemp -d)
+    git clone "$REPO_URL" "$TEMP_DIR"
+    cp -r "$TEMP_DIR"/* "$INSTALL_DIR/" 2>/dev/null || true
+    cp -r "$TEMP_DIR"/.[!.]* "$INSTALL_DIR/" 2>/dev/null || true
+    rm -rf "$TEMP_DIR"
+fi
+
+# =============================================================================
+# Create virtual environment
 # =============================================================================
 if [ ! -d "venv" ]; then
     echo ""
@@ -155,6 +202,14 @@ if [ ! -d "venv" ]; then
 fi
 
 source venv/bin/activate
+
+# Add FFmpeg to PATH in activate script
+if ! grep -q "TOOLS_DIR" venv/bin/activate; then
+    echo "" >> venv/bin/activate
+    echo "# Added by 7KT-AI installer" >> venv/bin/activate
+    echo "export PATH=\"$TOOLS_DIR/ffmpeg:\$PATH\"" >> venv/bin/activate
+fi
+
 pip install --upgrade pip
 
 # =============================================================================
@@ -215,6 +270,25 @@ elif [ ! -f ".env" ]; then
         echo "WARNING: Please edit .env to add your configuration"
     fi
 fi
+
+# =============================================================================
+# Create start script that uses local tools
+# =============================================================================
+cat > "$INSTALL_DIR/start.sh" << 'STARTSCRIPT'
+#!/bin/bash
+cd "$(dirname "$0")"
+source venv/bin/activate
+
+echo "=========================================="
+echo "7KT-AI Server"
+echo "=========================================="
+echo "Web UI:   http://localhost:8000"
+echo "API Docs: http://localhost:8000/docs"
+echo "=========================================="
+
+python -m uvicorn api.main:app --host 0.0.0.0 --port 8000
+STARTSCRIPT
+chmod +x "$INSTALL_DIR/start.sh"
 
 echo ""
 echo "=========================================="
