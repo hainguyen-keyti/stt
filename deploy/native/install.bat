@@ -240,10 +240,10 @@ REM Build frontend
 REM =============================================================================
 echo.
 echo Building frontend...
-cd web
+cd /d "%INSTALL_DIR%\web"
 "%NPM_BIN%" install
 "%NPM_BIN%" run build
-cd ..
+cd /d "%INSTALL_DIR%"
 
 REM =============================================================================
 REM Setup .env
