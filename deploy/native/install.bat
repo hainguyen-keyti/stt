@@ -81,40 +81,39 @@ echo FFmpeg installed to: %FFMPEG_DIR%
 set PATH=%FFMPEG_DIR%;%PATH%
 
 REM =============================================================================
-REM Download Python (embeddable)
+REM Download Python (standalone installer version, not embeddable)
 REM =============================================================================
 :download_python
 set PYTHON_VERSION=3.11.9
 set PYTHON_DIR=%TOOLS_DIR%\python
 set PYTHON_BIN=%PYTHON_DIR%\python.exe
+set PIP_BIN=%PYTHON_DIR%\Scripts\pip.exe
 
 if exist "%PYTHON_BIN%" (
     echo [OK] Python: already downloaded
     goto :python_done
 )
 
-echo Downloading Python %PYTHON_VERSION% ^(portable^)...
-set PYTHON_URL=https://www.python.org/ftp/python/%PYTHON_VERSION%/python-%PYTHON_VERSION%-embed-amd64.zip
+echo Downloading Python %PYTHON_VERSION%...
+REM Use nuget package which includes full Python with pip and venv
+set PYTHON_URL=https://www.nuget.org/api/v2/package/python/%PYTHON_VERSION%
 
 mkdir "%PYTHON_DIR%" 2>nul
-powershell -Command "Invoke-WebRequest -Uri '%PYTHON_URL%' -OutFile '%TOOLS_DIR%\python-embed.zip'"
+powershell -Command "Invoke-WebRequest -Uri '%PYTHON_URL%' -OutFile '%TOOLS_DIR%\python.nupkg'"
 
-REM Extract
+REM Extract (nupkg is just a zip)
 echo Extracting Python...
-powershell -Command "Expand-Archive -Path '%TOOLS_DIR%\python-embed.zip' -DestinationPath '%PYTHON_DIR%' -Force"
-del "%TOOLS_DIR%\python-embed.zip"
+powershell -Command "Expand-Archive -Path '%TOOLS_DIR%\python.nupkg' -DestinationPath '%TOOLS_DIR%\python-temp' -Force"
 
-REM Enable pip for embeddable Python
-echo Configuring Python...
-powershell -Command "(Get-Content '%PYTHON_DIR%\python311._pth') -replace '#import site', 'import site' | Set-Content '%PYTHON_DIR%\python311._pth'"
-
-REM Download and install pip
-powershell -Command "Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile '%PYTHON_DIR%\get-pip.py'"
-"%PYTHON_BIN%" "%PYTHON_DIR%\get-pip.py" --no-warn-script-location
+REM Move from tools subfolder
+xcopy /E /Y "%TOOLS_DIR%\python-temp\tools\*" "%PYTHON_DIR%\" >nul
+rmdir /s /q "%TOOLS_DIR%\python-temp"
+del "%TOOLS_DIR%\python.nupkg"
 
 echo Python installed to: %PYTHON_DIR%
 
 :python_done
+set PATH=%PYTHON_DIR%;%PYTHON_DIR%\Scripts;%PATH%
 
 REM Show status
 echo.
@@ -152,18 +151,6 @@ if exist "%INSTALL_DIR%\.git" (
 REM =============================================================================
 REM Create virtual environment
 REM =============================================================================
-REM Check if venv exists but was created with wrong Python version
-if exist "venv" (
-    for /f "tokens=2 delims= " %%v in ('venv\Scripts\python.exe --version 2^>^&1') do set VENV_PY_VER=%%v
-    for /f "tokens=1,2 delims=." %%a in ("!VENV_PY_VER!") do set VENV_MAJOR=%%a.%%b
-    if not "!VENV_MAJOR!"=="3.11" (
-        echo.
-        echo Existing venv uses Python !VENV_MAJOR!, need 3.11
-        echo Recreating virtual environment...
-        rmdir /s /q venv
-    )
-)
-
 if not exist "venv" (
     echo.
     echo Creating virtual environment...
@@ -172,15 +159,8 @@ if not exist "venv" (
 
 call venv\Scripts\activate.bat
 
-REM Add tools to PATH in activate script
-findstr /C:"TOOLS_DIR" venv\Scripts\activate.bat >nul 2>&1
-if %ERRORLEVEL% NEQ 0 (
-    echo. >> venv\Scripts\activate.bat
-    echo REM Added by 7KT-AI installer >> venv\Scripts\activate.bat
-    echo set PATH=%TOOLS_DIR%\ffmpeg;%TOOLS_DIR%\git\cmd;%%PATH%% >> venv\Scripts\activate.bat
-)
-
-python -m pip install --upgrade pip
+REM Upgrade pip
+"%PYTHON_DIR%\python.exe" -m pip install --upgrade pip
 
 REM =============================================================================
 REM Detect NVIDIA GPU and install PyTorch
@@ -250,6 +230,7 @@ REM ============================================================================
 (
 echo @echo off
 echo cd /d "%%~dp0"
+echo set PATH=%%~dp0.tools\ffmpeg;%%~dp0.tools\git\cmd;%%~dp0.tools\python;%%~dp0.tools\python\Scripts;%%PATH%%
 echo call venv\Scripts\activate.bat
 echo echo ==========================================
 echo echo 7KT-AI Server
