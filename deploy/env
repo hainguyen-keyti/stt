@@ -1,0 +1,38 @@
+# Server Configuration
+HOST=0.0.0.0
+PORT=8000
+DEBUG=false
+WORKERS=1
+
+# Database (MongoDB)
+DATABASE_URL=mongodb+srv://hainh9939:6ohMiXfibfiABzMT@cluster0.psigmjx.mongodb.net/
+DATABASE_NAME=video_pipeline_1
+
+# JWT Authentication
+JWT_SECRET=your-super-secret-key-change-this-in-production
+JWT_ALGORITHM=HS256
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=1440
+JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# External APIs
+GEMINI_API_KEY=AIzaSyCb6xUlDdOgjJQLdHJDXjvRXWUzANTRhmY
+
+# Storage
+MAX_UPLOAD_SIZE_MB=500
+
+# Processing
+MAX_CONCURRENT_TASKS=2
+TASK_TIMEOUT_SECONDS=3600
+CLEANUP_AFTER_HOURS=24
+
+# Credits
+CREDITS_PER_SECOND=1.0
+FREE_CREDITS_ON_SIGNUP=600
+
+# FFmpeg (optional, uses system default)
+# FFMPEG_PATH=/usr/bin/ffmpeg
+# FFPROBE_PATH=/usr/bin/ffprobe
+
+# Vivibe TTS - Auto refresh enabled
+# Token will be auto-refreshed using VIVIBE_REFRESH_TOKEN (no need to set VIVIBE_TOKEN)
+VIVIBE_REFRESH_TOKEN=AMf-vBwRZEOI3e02W1_nLf7r330Oa0M9P3whKIYhTLP61oID8zs3L1GZUir76Tpgp85LD_hirkIiLu0l4FbIcc05wwBqTbhQ5m_jJarVW3pxNjssa6OFkV1pDQTIra0UC5FrdLDKlK6c_GHC0a9z1B5A8MJi2H3Ji0KU091otOT7V1DLrt1jWEeYIs0fDpYvSUHmZULy4bId22lee07_RGxRqaZ1Z13-U5VHVwsH4ZoGWIkvcpbMDAIuAIxs0xm0QBunvpWMHGYi-PJPY1daDjoaobhT1Qi_BiRGCDG3mAJ6OCsZNaUQKA1kL-pjR6nz8UYatZbqJoJQwKenVuBdSoxEgbZqtCDtMTCsEcM_b9HL0I1KEKNwqXa-kF2u7LrkrYFrKenL9FC76_0Prq4a3ZD1PS30KvGfWFMMFHE5jCKoJ59SbVck7R4

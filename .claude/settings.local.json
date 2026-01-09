@@ -31,7 +31,10 @@
       "Bash(pip3 install:*)",
       "Bash(COQUI_TOS_AGREED=1 python3:*)",
       "Bash(piper --help:*)",
-      "Bash(xargs basename:*)"
+      "Bash(xargs basename:*)",
+      "Bash(docker build:*)",
+      "Bash(/usr/local/bin/docker --version)",
+      "Bash(/opt/homebrew/bin/docker:*)"
     ],
     "deny": [],
     "ask": []

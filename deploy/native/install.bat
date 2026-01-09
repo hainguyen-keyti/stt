@@ -99,16 +99,17 @@ REM Use nuget package which includes full Python with pip and venv
 set PYTHON_URL=https://www.nuget.org/api/v2/package/python/%PYTHON_VERSION%
 
 mkdir "%PYTHON_DIR%" 2>nul
-powershell -Command "Invoke-WebRequest -Uri '%PYTHON_URL%' -OutFile '%TOOLS_DIR%\python.nupkg'"
+REM Download as .zip (nupkg is just a zip file)
+powershell -Command "Invoke-WebRequest -Uri '%PYTHON_URL%' -OutFile '%TOOLS_DIR%\python.zip'"
 
-REM Extract (nupkg is just a zip)
+REM Extract
 echo Extracting Python...
-powershell -Command "Expand-Archive -Path '%TOOLS_DIR%\python.nupkg' -DestinationPath '%TOOLS_DIR%\python-temp' -Force"
+powershell -Command "Expand-Archive -Path '%TOOLS_DIR%\python.zip' -DestinationPath '%TOOLS_DIR%\python-temp' -Force"
 
 REM Move from tools subfolder
 xcopy /E /Y "%TOOLS_DIR%\python-temp\tools\*" "%PYTHON_DIR%\" >nul
 rmdir /s /q "%TOOLS_DIR%\python-temp"
-del "%TOOLS_DIR%\python.nupkg"
+del "%TOOLS_DIR%\python.zip"
 
 echo Python installed to: %PYTHON_DIR%
 
@@ -144,7 +145,7 @@ if exist "%INSTALL_DIR%\.git" (
     REM Clone to temp and move contents
     set TEMP_CLONE=%TEMP%\stt-temp-%RANDOM%
     "%GIT_BIN%" clone https://github.com/hainguyen-keyti/stt.git "!TEMP_CLONE!"
-    xcopy /E /Y "!TEMP_CLONE!\*" "%INSTALL_DIR%\" >nul
+    xcopy /E /Y /H "!TEMP_CLONE!\*" "%INSTALL_DIR%\" >nul
     rmdir /s /q "!TEMP_CLONE!"
 )
 
