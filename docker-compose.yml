@@ -1,0 +1,119 @@
+# =============================================================================
+# Docker Compose for STT Service
+# Supports both CPU and GPU deployments with maximum resource utilization
+# =============================================================================
+#
+# Usage:
+#   CPU mode:  docker-compose up -d
+#   GPU mode:  docker-compose --profile gpu up -d
+#
+# Build:
+#   CPU mode:  docker-compose build
+#   GPU mode:  docker-compose build --build-arg TARGET_PLATFORM=gpu
+#
+# =============================================================================
+
+version: '3.8'
+
+services:
+  # ===========================================================================
+  # CPU Service - Default
+  # ===========================================================================
+  stt:
+    build:
+      context: .
+      args:
+        TARGET_PLATFORM: cpu
+    container_name: stt-service
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Model caches - persist across restarts
+      - whisper-cache:/root/.cache/whisper
+      - huggingface-cache:/root/.cache/huggingface
+      - torch-cache:/root/.cache/torch
+      # Upload directory
+      - ./uploads:/app/uploads
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - WHISPER_CACHE_DIR=/root/.cache/whisper
+      - HF_HOME=/root/.cache/huggingface
+      # CPU optimization - use all available cores
+      - OMP_NUM_THREADS=0
+      - MKL_NUM_THREADS=0
+    # Use all available CPU resources
+    deploy:
+      resources:
+        limits:
+          memory: 16G
+        reservations:
+          memory: 4G
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 3
+
+  # ===========================================================================
+  # GPU Service - NVIDIA CUDA
+  # ===========================================================================
+  stt-gpu:
+    profiles:
+      - gpu
+    build:
+      context: .
+      args:
+        TARGET_PLATFORM: gpu
+    container_name: stt-service-gpu
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Model caches - persist across restarts
+      - whisper-cache:/root/.cache/whisper
+      - huggingface-cache:/root/.cache/huggingface
+      - torch-cache:/root/.cache/torch
+      # Upload directory
+      - ./uploads:/app/uploads
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - WHISPER_CACHE_DIR=/root/.cache/whisper
+      - HF_HOME=/root/.cache/huggingface
+      # CUDA optimizations
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+    # GPU access
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+        limits:
+          memory: 32G
+        reservations:
+          memory: 8G
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 3
+
+volumes:
+  whisper-cache:
+    name: stt-whisper-cache
+  huggingface-cache:
+    name: stt-huggingface-cache
+  torch-cache:
+    name: stt-torch-cache

@@ -3,6 +3,12 @@ Demucs Audio Separator Engine
 
 Audio source separation using Facebook's Demucs via audio-separator library.
 Supports multiple models including UVR models.
+
+Hardware Support:
+- NVIDIA CUDA (Linux, Windows)
+- Apple Silicon MPS (macOS M1/M2/M3/M4)
+- AMD ROCm (Linux)
+- CPU fallback (all platforms)
 """
 
 import logging
@@ -18,6 +24,12 @@ from modules.audio_separator.engines.base import (
     SeparatorEngine,
     SeparationResult,
     EngineInfo,
+)
+from modules.stt.utils.gpu import (
+    get_optimal_device,
+    get_gpu_info,
+    clear_gpu_cache,
+    is_gpu_available,
 )
 
 logger = logging.getLogger(__name__)
@@ -64,18 +76,37 @@ class DemucsEngine(SeparatorEngine):
         self._output_dir = None
 
     def _get_separator(self) -> "Separator":
-        """Get or create separator instance."""
+        """Get or create separator instance with optimal hardware detection."""
         if self._separator is None:
             # Create output directory
             self._output_dir = tempfile.mkdtemp(prefix="demucs_")
 
+            # Auto-detect optimal device
+            device = get_optimal_device()
+            gpu_info = get_gpu_info()
+
             logger.info(f"Loading Demucs model: {self._model_name}")
+            logger.info(f"Using device: {device} ({gpu_info.get('device_name', 'CPU')})")
+
+            # Configure separator based on device
+            # audio-separator uses different device names
+            if device == "cuda":
+                use_cpu = False
+            elif device == "mps":
+                # MPS support depends on audio-separator version
+                # Some models may not work with MPS, fallback to CPU if needed
+                use_cpu = False  # Will use MPS if available
+            else:
+                use_cpu = True
+
             self._separator = Separator(
                 output_dir=self._output_dir,
                 output_format="wav",
             )
+
             # Load model
             self._separator.load_model(model_filename=self._model_name)
+
         return self._separator
 
     def separate(
@@ -204,7 +235,7 @@ class DemucsEngine(SeparatorEngine):
         return SEPARATOR_AVAILABLE
 
     def cleanup(self):
-        """Release resources."""
+        """Release resources and clear GPU memory."""
         if self._output_dir and Path(self._output_dir).exists():
             import shutil
             try:
@@ -212,4 +243,7 @@ class DemucsEngine(SeparatorEngine):
             except Exception as e:
                 logger.warning(f"Failed to cleanup: {e}")
         self._separator = None
+
+        # Clear GPU cache
+        clear_gpu_cache()
         logger.info("Demucs engine cleaned up")

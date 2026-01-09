@@ -24,6 +24,14 @@ from api.routers import subtitle, metrics, presets, separator, tts
 # Setup logging
 setup_logging(log_level="INFO", use_json=False)  # Use simple format for development
 
+import logging
+logger = logging.getLogger(__name__)
+
+# Print hardware summary on startup
+from modules.stt.utils.gpu import print_hardware_summary, get_optimal_device, get_optimal_compute_type
+print_hardware_summary()
+logger.info(f"Service starting with device={get_optimal_device()}, compute_type={get_optimal_compute_type()}")
+
 # Track service start time for uptime calculation
 START_TIME = time.time()
 
@@ -107,7 +115,7 @@ if STATIC_DIR.exists() and (STATIC_DIR / "assets").exists():
     async def serve_frontend(full_path: str):
         """Serve frontend SPA for all non-API routes."""
         # Skip API routes
-        if full_path.startswith(("docs", "redoc", "openapi.json", "subtitle", "separator", "tts", "presets", "metrics", "health")):
+        if full_path.startswith(("docs", "redoc", "openapi.json", "subtitle", "separator", "tts", "presets", "metrics", "health", "hardware")):
             return None
         # Serve index.html for SPA routing
         index_file = STATIC_DIR / "index.html"

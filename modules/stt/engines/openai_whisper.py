@@ -248,7 +248,6 @@ class OpenAIWhisperEngine(ASREngine):
 
         self.model = None
 
-        # Clear CUDA cache if available
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-            logger.info("Cleared CUDA cache")
+        # Clear GPU cache (CUDA, MPS, ROCm)
+        from modules.stt.utils.gpu import clear_gpu_cache
+        clear_gpu_cache()

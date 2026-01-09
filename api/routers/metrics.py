@@ -13,7 +13,15 @@ import threading
 
 from fastapi import APIRouter
 from api.models.responses import Metrics
-from modules.stt.utils.gpu import is_gpu_available, get_vram_info
+from modules.stt.utils.gpu import (
+    is_gpu_available,
+    get_vram_info,
+    get_gpu_info,
+    get_system_info,
+    get_optimal_device,
+    get_optimal_compute_type,
+    get_available_devices,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -230,3 +238,101 @@ async def get_metrics():
     """
     metrics_data = _metrics_collector.get_metrics()
     return Metrics(**metrics_data)
+
+
+@router.get("/hardware", tags=["Monitoring"])
+async def get_hardware_info():
+    """
+    Get detailed hardware information and auto-detected configuration.
+
+    Provides comprehensive information about the system's hardware capabilities
+    and the automatically selected optimal configuration.
+
+    **Hardware Detection**:
+    - NVIDIA CUDA GPU (Linux, Windows)
+    - Apple Silicon MPS (macOS M1/M2/M3/M4)
+    - AMD ROCm GPU (Linux)
+    - CPU fallback (all platforms)
+
+    **Returns**:
+    - System information (OS, architecture, Python version)
+    - GPU/accelerator details (type, name, memory)
+    - Optimal device and compute type selection
+    - Available device types
+
+    **Example Response**:
+    ```json
+    {
+      "system": {
+        "os": "Linux",
+        "architecture": "x86_64",
+        "python_version": "3.11.0"
+      },
+      "accelerator": {
+        "available": true,
+        "device_type": "cuda",
+        "device_name": "NVIDIA GeForce RTX 3080",
+        "device_count": 1,
+        "cuda_version": "12.1",
+        "memory": {
+          "total_mb": 10240,
+          "allocated_mb": 2048,
+          "free_mb": 8192,
+          "usage_percent": 20.0
+        }
+      },
+      "optimal_config": {
+        "device": "cuda",
+        "compute_type": "float16"
+      },
+      "available_devices": {
+        "cuda": true,
+        "mps": false,
+        "rocm": false,
+        "cpu": true
+      }
+    }
+    ```
+    """
+    # Get system info
+    system = get_system_info()
+
+    # Get GPU/accelerator info
+    gpu_info = get_gpu_info()
+
+    # Get memory info if GPU available
+    memory_info = None
+    if gpu_info.get("available"):
+        memory_info = get_vram_info()
+
+    # Get optimal configuration
+    optimal_device = get_optimal_device()
+    optimal_compute = get_optimal_compute_type(optimal_device)
+
+    # Get available devices
+    available = get_available_devices()
+
+    return {
+        "system": {
+            "os": system.get("os"),
+            "os_version": system.get("os_version"),
+            "architecture": system.get("architecture"),
+            "processor": system.get("processor"),
+            "python_version": system.get("python_version"),
+        },
+        "accelerator": {
+            "available": gpu_info.get("available", False),
+            "device_type": gpu_info.get("device_type", "cpu"),
+            "device_name": gpu_info.get("device_name"),
+            "device_count": gpu_info.get("device_count", 0),
+            "cuda_version": gpu_info.get("cuda_version"),
+            "torch_version": gpu_info.get("torch_version"),
+            "driver_version": gpu_info.get("driver_version"),
+            "memory": memory_info,
+        },
+        "optimal_config": {
+            "device": optimal_device,
+            "compute_type": optimal_compute,
+        },
+        "available_devices": available,
+    }
