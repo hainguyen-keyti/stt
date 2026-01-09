@@ -19,10 +19,8 @@ try:
     import whisper
     import torch
     OPENAI_WHISPER_AVAILABLE = True
-    MPS_AVAILABLE = torch.backends.mps.is_available()
 except ImportError:
     OPENAI_WHISPER_AVAILABLE = False
-    MPS_AVAILABLE = False
     logger.warning("OpenAI Whisper not available. Install with: pip install openai-whisper")
 
 
@@ -62,6 +60,11 @@ class OpenAIWhisperEngine(ASREngine):
 
         self.device = config.get("device", "cpu")
         download_root = config.get("download_root", None)
+
+        # MPS causes hallucination issues with OpenAI Whisper, force CPU
+        if self.device == "mps":
+            logger.warning("OpenAI Whisper on MPS causes hallucinations, falling back to CPU")
+            self.device = "cpu"
 
         logger.info(f"Loading OpenAI Whisper model: {model_size} on {self.device}")
 
@@ -115,12 +118,6 @@ class OpenAIWhisperEngine(ASREngine):
         no_speech_threshold = config.get("no_speech_threshold", 0.6)
         compression_ratio_threshold = config.get("compression_ratio_threshold", 2.4)
         logprob_threshold = config.get("logprob_threshold", -1.0)
-
-        # MPS doesn't support float64 needed for word_timestamps alignment
-        # Disable word_timestamps on MPS to avoid hallucination issues
-        if MPS_AVAILABLE and self.device == "mps" and word_timestamps:
-            logger.warning("word_timestamps disabled on MPS (not supported). Use faster-whisper for word-level timing on Apple Silicon.")
-            word_timestamps = False
 
         logger.info(f"Transcribing: {audio_path}")
         logger.info(f"Config: language={language}, word_timestamps={word_timestamps}, initial_prompt={initial_prompt}")
