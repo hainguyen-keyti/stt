@@ -20,29 +20,30 @@ try:
     import torch
     OPENAI_WHISPER_AVAILABLE = True
 
-    # Patch for MPS: find_alignment uses x.double() which MPS doesn't support
-    # We need to move tensor to CPU before converting to float64
+    # Patch for MPS: dtw function uses x.double() which MPS doesn't support
+    # We need to move tensor to CPU before calling double()
     try:
         from whisper import timing
-        _original_find_alignment = timing.find_alignment
 
-        def _patched_find_alignment(model, tokenizer, text_tokens, mel, num_frames, **kwargs):
-            # Temporarily move model to CPU for alignment (dtw needs float64)
-            original_device = next(model.parameters()).device
-            if str(original_device) == 'mps':
-                model = model.to('cpu')
-                mel = mel.to('cpu')
-                result = _original_find_alignment(model, tokenizer, text_tokens, mel, num_frames, **kwargs)
-                model.to(original_device)
-                return result
-            return _original_find_alignment(model, tokenizer, text_tokens, mel, num_frames, **kwargs)
+        # Get the original dtw_cpu function
+        _original_dtw_cpu = timing.dtw_cpu
+
+        def _patched_dtw(x):
+            # Move to CPU first, then convert to float64
+            if hasattr(x, 'cpu'):
+                x = x.cpu()
+            if hasattr(x, 'double'):
+                x = x.double()
+            if hasattr(x, 'numpy'):
+                x = x.numpy()
+            return _original_dtw_cpu(x)
 
         # Only patch if we're actually using MPS
         if torch.backends.mps.is_available():
-            timing.find_alignment = _patched_find_alignment
-            logger.info("Patched whisper.timing.find_alignment for MPS compatibility")
+            timing.dtw = _patched_dtw
+            logger.info("Patched whisper.timing.dtw for MPS compatibility")
     except Exception as e:
-        logger.debug(f"Could not patch find_alignment for MPS: {e}")
+        logger.debug(f"Could not patch dtw for MPS: {e}")
 
 except ImportError:
     OPENAI_WHISPER_AVAILABLE = False
