@@ -65,7 +65,7 @@ if exist "%INSTALL_DIR%\.git" (
     echo.
     echo Repository cloned. Re-running updated install script...
     echo.
-    call "%INSTALL_DIR%\deploy\native\install.bat"
+    call "!INSTALL_DIR!\deploy\native\install.bat"
     exit /b
 )
 
