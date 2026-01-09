@@ -19,7 +19,7 @@ REM Create tools directory
 mkdir "%TOOLS_DIR%" 2>nul
 
 REM =============================================================================
-REM Download Git (portable)
+REM Download Git (portable) - FIRST to enable cloning
 REM =============================================================================
 :download_git
 set GIT_DIR=%TOOLS_DIR%\git
@@ -46,6 +46,28 @@ echo Git installed to: %GIT_DIR%
 
 :git_done
 set PATH=%GIT_DIR%\cmd;%PATH%
+
+REM =============================================================================
+REM Clone/Update Repository FIRST (to get latest install script)
+REM =============================================================================
+if exist "%INSTALL_DIR%\.git" (
+    echo Updating repository...
+    "%GIT_BIN%" pull
+) else (
+    echo Cloning repository...
+    REM Clone to temp and move contents
+    set TEMP_CLONE=%TEMP%\stt-temp-%RANDOM%
+    "%GIT_BIN%" clone https://github.com/hainguyen-keyti/stt.git "!TEMP_CLONE!"
+    xcopy /E /Y /H "!TEMP_CLONE!\*" "%INSTALL_DIR%\" >nul
+    rmdir /s /q "!TEMP_CLONE!"
+
+    REM Re-run the new install script after cloning
+    echo.
+    echo Repository cloned. Re-running updated install script...
+    echo.
+    call "%INSTALL_DIR%\deploy\native\install.bat"
+    exit /b
+)
 
 REM =============================================================================
 REM Download FFmpeg (portable)
@@ -162,21 +184,6 @@ echo [OK] Node.js: downloaded
 echo.
 echo All tools ready!
 echo.
-
-REM =============================================================================
-REM Clone/Update Repository
-REM =============================================================================
-if exist "%INSTALL_DIR%\.git" (
-    echo Updating repository...
-    "%GIT_BIN%" pull
-) else (
-    echo Cloning repository...
-    REM Clone to temp and move contents
-    set TEMP_CLONE=%TEMP%\stt-temp-%RANDOM%
-    "%GIT_BIN%" clone https://github.com/hainguyen-keyti/stt.git "!TEMP_CLONE!"
-    xcopy /E /Y /H "!TEMP_CLONE!\*" "%INSTALL_DIR%\" >nul
-    rmdir /s /q "!TEMP_CLONE!"
-)
 
 REM =============================================================================
 REM Create virtual environment
