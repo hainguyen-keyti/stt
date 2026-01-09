@@ -156,6 +156,18 @@ if exist "%INSTALL_DIR%\.git" (
 REM =============================================================================
 REM Create virtual environment
 REM =============================================================================
+REM Check if venv exists but was created with wrong Python version
+if exist "venv" (
+    for /f "tokens=2 delims= " %%v in ('venv\Scripts\python.exe --version 2^>^&1') do set VENV_PY_VER=%%v
+    for /f "tokens=1,2 delims=." %%a in ("!VENV_PY_VER!") do set VENV_MAJOR=%%a.%%b
+    if not "!VENV_MAJOR!"=="3.11" (
+        echo.
+        echo Existing venv uses Python !VENV_MAJOR!, need 3.11
+        echo Recreating virtual environment...
+        rmdir /s /q venv
+    )
+)
+
 if not exist "venv" (
     echo.
     echo Creating virtual environment...

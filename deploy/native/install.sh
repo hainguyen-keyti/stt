@@ -161,6 +161,8 @@ echo "[OK] FFmpeg: downloaded"
 
 # Download Python
 download_python
+# Ensure PYTHON_BIN is set (function might have returned early)
+PYTHON_BIN="$TOOLS_DIR/python/bin/python3"
 echo "[OK] Python: $($PYTHON_BIN --version 2>&1 | cut -d' ' -f2)"
 
 # Check Node.js (optional)
@@ -195,6 +197,18 @@ fi
 # =============================================================================
 # Create virtual environment
 # =============================================================================
+# Check if venv exists but was created with wrong Python version
+if [ -d "venv" ]; then
+    VENV_PYTHON_VERSION=$(venv/bin/python3 --version 2>&1 | cut -d' ' -f2 | cut -d'.' -f1,2)
+    EXPECTED_VERSION="3.11"
+    if [ "$VENV_PYTHON_VERSION" != "$EXPECTED_VERSION" ]; then
+        echo ""
+        echo "Existing venv uses Python $VENV_PYTHON_VERSION, need $EXPECTED_VERSION"
+        echo "Recreating virtual environment..."
+        rm -rf venv
+    fi
+fi
+
 if [ ! -d "venv" ]; then
     echo ""
     echo "Creating virtual environment..."
