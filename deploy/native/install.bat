@@ -46,11 +46,16 @@ set "PATH=%GIT_DIR%\cmd;%PATH%"
 REM =============================================================================
 REM Clone/Update Repository
 REM =============================================================================
-if exist "%INSTALL_DIR%\.git" (
+REM Check if this is a valid git repo by testing git status
+"%GIT_BIN%" -C "%INSTALL_DIR%" rev-parse --git-dir >nul 2>&1
+if %ERRORLEVEL% EQU 0 (
     echo Updating repository...
-    "%GIT_BIN%" pull
+    "%GIT_BIN%" -C "%INSTALL_DIR%" pull
 ) else (
     echo Cloning repository...
+    REM Remove any invalid .git folder
+    if exist "%INSTALL_DIR%\.git" rmdir /s /q "%INSTALL_DIR%\.git"
+
     set "TEMP_CLONE=%TEMP%\stt-clone-%RANDOM%"
     "%GIT_BIN%" clone https://github.com/hainguyen-keyti/stt.git "!TEMP_CLONE!"
     if errorlevel 1 (
