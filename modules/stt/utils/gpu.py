@@ -459,35 +459,225 @@ def get_num_workers() -> int:
         return max(1, cpu_count - 2)
 
 
+def get_cpu_info() -> Dict[str, Any]:
+    """
+    Get detailed CPU information.
+
+    Returns:
+        Dict with CPU details
+    """
+    import multiprocessing
+
+    info = {
+        "physical_cores": None,
+        "logical_cores": multiprocessing.cpu_count(),
+        "model": None,
+        "frequency_mhz": None,
+    }
+
+    try:
+        # Try to get physical core count
+        import os
+        if hasattr(os, 'sched_getaffinity'):
+            info["physical_cores"] = len(os.sched_getaffinity(0))
+    except Exception:
+        pass
+
+    # Get CPU model name
+    system = platform.system()
+    try:
+        if system == "Darwin":  # macOS
+            import subprocess
+            result = subprocess.run(
+                ["sysctl", "-n", "machdep.cpu.brand_string"],
+                capture_output=True, text=True, timeout=5
+            )
+            if result.returncode == 0:
+                info["model"] = result.stdout.strip()
+        elif system == "Linux":
+            with open("/proc/cpuinfo", "r") as f:
+                for line in f:
+                    if "model name" in line:
+                        info["model"] = line.split(":")[1].strip()
+                        break
+        elif system == "Windows":
+            import subprocess
+            result = subprocess.run(
+                ["wmic", "cpu", "get", "name"],
+                capture_output=True, text=True, timeout=5
+            )
+            if result.returncode == 0:
+                lines = result.stdout.strip().split('\n')
+                if len(lines) > 1:
+                    info["model"] = lines[1].strip()
+    except Exception:
+        pass
+
+    return info
+
+
+def get_memory_info() -> Dict[str, float]:
+    """
+    Get system RAM information.
+
+    Returns:
+        Dict with memory details in MB
+    """
+    info = {
+        "total_mb": 0,
+        "available_mb": 0,
+        "used_mb": 0,
+        "usage_percent": 0.0,
+    }
+
+    try:
+        import psutil
+        mem = psutil.virtual_memory()
+        info["total_mb"] = round(mem.total / (1024**2), 2)
+        info["available_mb"] = round(mem.available / (1024**2), 2)
+        info["used_mb"] = round(mem.used / (1024**2), 2)
+        info["usage_percent"] = round(mem.percent, 2)
+    except ImportError:
+        # psutil not available, try alternative methods
+        system = platform.system()
+        try:
+            if system == "Darwin":  # macOS
+                import subprocess
+                result = subprocess.run(
+                    ["sysctl", "-n", "hw.memsize"],
+                    capture_output=True, text=True, timeout=5
+                )
+                if result.returncode == 0:
+                    info["total_mb"] = round(int(result.stdout.strip()) / (1024**2), 2)
+            elif system == "Linux":
+                with open("/proc/meminfo", "r") as f:
+                    for line in f:
+                        if line.startswith("MemTotal:"):
+                            info["total_mb"] = round(int(line.split()[1]) / 1024, 2)
+                        elif line.startswith("MemAvailable:"):
+                            info["available_mb"] = round(int(line.split()[1]) / 1024, 2)
+                    info["used_mb"] = info["total_mb"] - info["available_mb"]
+                    if info["total_mb"] > 0:
+                        info["usage_percent"] = round((info["used_mb"] / info["total_mb"]) * 100, 2)
+        except Exception:
+            pass
+
+    return info
+
+
+def get_disk_info(path: str = "/") -> Dict[str, float]:
+    """
+    Get disk space information.
+
+    Args:
+        path: Path to check disk space for
+
+    Returns:
+        Dict with disk details in GB
+    """
+    info = {
+        "total_gb": 0,
+        "free_gb": 0,
+        "used_gb": 0,
+        "usage_percent": 0.0,
+    }
+
+    try:
+        import shutil
+        total, used, free = shutil.disk_usage(path)
+        info["total_gb"] = round(total / (1024**3), 2)
+        info["used_gb"] = round(used / (1024**3), 2)
+        info["free_gb"] = round(free / (1024**3), 2)
+        if info["total_gb"] > 0:
+            info["usage_percent"] = round((info["used_gb"] / info["total_gb"]) * 100, 2)
+    except Exception:
+        pass
+
+    return info
+
+
+def get_full_hardware_info() -> Dict[str, Any]:
+    """
+    Get comprehensive hardware information for benchmarking.
+
+    Returns:
+        Dict with all hardware details
+    """
+    return {
+        "system": get_system_info(),
+        "cpu": get_cpu_info(),
+        "memory": get_memory_info(),
+        "disk": get_disk_info(),
+        "gpu": get_gpu_info(),
+        "gpu_memory": get_vram_info() if is_gpu_available() else None,
+        "optimal_config": {
+            "device": get_optimal_device(),
+            "compute_type": get_optimal_compute_type(),
+            "num_workers": get_num_workers(),
+        },
+    }
+
+
 def print_hardware_summary():
-    """Print a summary of available hardware to the logger."""
+    """Print a comprehensive summary of available hardware to the logger."""
     info = get_gpu_info()
     system = get_system_info()
+    cpu = get_cpu_info()
+    memory = get_memory_info()
+    disk = get_disk_info()
 
-    logger.info("=" * 50)
-    logger.info("Hardware Detection Summary")
-    logger.info("=" * 50)
-    logger.info(f"OS: {system['os']} ({system['architecture']})")
+    logger.info("=" * 60)
+    logger.info("HARDWARE DETECTION SUMMARY")
+    logger.info("=" * 60)
+
+    # System Info
+    logger.info(f"OS: {system['os']} {system.get('os_version', '')} ({system['architecture']})")
     logger.info(f"Python: {system['python_version']}")
     logger.info(f"PyTorch: {info.get('torch_version', 'N/A')}")
-    logger.info("-" * 50)
 
+    logger.info("-" * 60)
+
+    # CPU Info
+    logger.info("CPU:")
+    if cpu.get("model"):
+        logger.info(f"  Model: {cpu['model']}")
+    logger.info(f"  Cores: {cpu.get('physical_cores') or cpu['logical_cores']} physical, {cpu['logical_cores']} logical")
+
+    # Memory Info
+    logger.info("RAM:")
+    logger.info(f"  Total: {memory['total_mb']:.0f} MB ({memory['total_mb']/1024:.1f} GB)")
+    logger.info(f"  Available: {memory['available_mb']:.0f} MB ({memory['usage_percent']:.1f}% used)")
+
+    # Disk Info
+    logger.info("Disk:")
+    logger.info(f"  Total: {disk['total_gb']:.1f} GB")
+    logger.info(f"  Free: {disk['free_gb']:.1f} GB ({disk['usage_percent']:.1f}% used)")
+
+    logger.info("-" * 60)
+
+    # GPU Info
     if info["available"]:
-        logger.info(f"Accelerator: {info['device_type'].upper()}")
-        logger.info(f"Device: {info['device_name']}")
-        logger.info(f"Device Count: {info['device_count']}")
+        logger.info(f"GPU: {info['device_type'].upper()}")
+        logger.info(f"  Device: {info['device_name']}")
+        logger.info(f"  Count: {info['device_count']}")
 
         if info['cuda_version']:
-            logger.info(f"CUDA Version: {info['cuda_version']}")
+            logger.info(f"  CUDA: {info['cuda_version']}")
         if info['driver_version']:
-            logger.info(f"Driver Version: {info['driver_version']}")
+            logger.info(f"  Driver: {info['driver_version']}")
 
         vram = get_vram_info()
         if vram['total_mb'] > 0:
-            logger.info(f"Memory: {vram['total_mb']:.0f} MB total, {vram['free_mb']:.0f} MB free")
+            logger.info(f"  VRAM: {vram['total_mb']:.0f} MB total, {vram['free_mb']:.0f} MB free ({vram['usage_percent']:.1f}% used)")
     else:
-        logger.info("Accelerator: CPU (no GPU detected)")
+        logger.info("GPU: None detected (using CPU)")
 
-    logger.info(f"Optimal Device: {get_optimal_device()}")
-    logger.info(f"Optimal Compute Type: {get_optimal_compute_type()}")
-    logger.info("=" * 50)
+    logger.info("-" * 60)
+
+    # Optimal Configuration
+    logger.info("OPTIMAL CONFIGURATION:")
+    logger.info(f"  Device: {get_optimal_device()}")
+    logger.info(f"  Compute Type: {get_optimal_compute_type()}")
+    logger.info(f"  Workers: {get_num_workers()}")
+
+    logger.info("=" * 60)

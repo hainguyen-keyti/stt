@@ -7,6 +7,7 @@ Encapsulates all business logic for transcription workflow.
 
 import logging
 import time
+import os
 from pathlib import Path
 from typing import Optional, Dict, Any
 from dataclasses import dataclass
@@ -14,8 +15,10 @@ from dataclasses import dataclass
 from modules.stt.models import get_model_manager
 from modules.stt.formatters import SRTFormatter
 from modules.stt.utils.gpu import get_optimal_device, get_optimal_compute_type, is_gpu_available, get_vram_info
+from modules.stt.utils.timing import TaskTimer, format_duration, calculate_rtf
 
 logger = logging.getLogger(__name__)
+perf_logger = logging.getLogger("perf.STT")
 
 
 @dataclass
@@ -63,6 +66,7 @@ class TranscriptionResult:
     total_time_ms: float = 0.0
     inference_time_ms: float = 0.0
     preprocessing_time_ms: float = 0.0
+    formatting_time_ms: float = 0.0
     audio_duration_s: float = 0.0
     real_time_factor: float = 0.0
     vram_used_mb: Optional[float] = None
@@ -82,6 +86,19 @@ class STTService:
     def __init__(self):
         self.model_manager = get_model_manager()
 
+    def _get_audio_info(self, audio_path: str) -> Dict[str, Any]:
+        """Get audio file information."""
+        info = {
+            "file_size_mb": 0,
+            "duration_s": 0,
+        }
+        try:
+            file_size = os.path.getsize(audio_path)
+            info["file_size_mb"] = round(file_size / (1024 * 1024), 2)
+        except Exception:
+            pass
+        return info
+
     def transcribe(self, request: TranscriptionRequest) -> TranscriptionResult:
         """
         Transcribe audio file to subtitles.
@@ -92,11 +109,23 @@ class STTService:
         Returns:
             TranscriptionResult with output and metrics
         """
-        request_start_time = time.time()
+        # Initialize timer
+        timer = TaskTimer("transcribe", module="STT")
+        timer.start()
+
+        # Get audio info for logging
+        audio_info = self._get_audio_info(request.audio_path)
+        audio_filename = Path(request.audio_path).name
+
+        perf_logger.info(f"[STT] ===== TRANSCRIPTION START =====")
+        perf_logger.info(f"[STT] File: {audio_filename}")
+        perf_logger.info(f"[STT] Size: {audio_info['file_size_mb']} MB")
+        perf_logger.info(f"[STT] Engine: {request.engine}, Model: {request.model_size}")
 
         try:
             # Validate audio file
             if not Path(request.audio_path).exists():
+                perf_logger.error(f"[STT] File not found: {request.audio_path}")
                 return TranscriptionResult(
                     success=False,
                     output_type=request.output_format,
@@ -105,20 +134,22 @@ class STTService:
 
             # Auto-detect compute type
             compute_type = request.compute_type or get_optimal_compute_type()
+            device = get_optimal_device()
+
+            perf_logger.info(f"[STT] Device: {device}, Compute: {compute_type}")
 
             # Load engine
             engine_config = {
-                "device": get_optimal_device(),
+                "device": device,
                 "compute_type": compute_type,
             }
 
-            preprocessing_start = time.time()
             engine = self.model_manager.get_engine(
                 request.engine,
                 request.model_size,
                 engine_config
             )
-            preprocessing_time_ms = (time.time() - preprocessing_start) * 1000
+            preprocessing_time_ms = timer.mark("model_load")
 
             # Build transcription config
             transcription_config = {
@@ -137,16 +168,14 @@ class STTService:
             }
 
             # Transcribe
-            inference_start = time.time()
             result = engine.transcribe(request.audio_path, transcription_config)
-            inference_time_ms = (time.time() - inference_start) * 1000
-
-            total_time_ms = (time.time() - request_start_time) * 1000
+            inference_time_ms = timer.mark("inference")
 
             # Calculate metrics
             audio_duration_s = result.segments[-1].end if result.segments else 0
-            real_time_factor = (total_time_ms / 1000) / audio_duration_s if audio_duration_s > 0 else 0
+            segment_count = len(result.segments)
 
+            # Get VRAM usage
             vram_used_mb = None
             if is_gpu_available():
                 vram_info = get_vram_info()
@@ -154,19 +183,50 @@ class STTService:
 
             # Format output
             if request.output_format == "json":
-                return self._format_json_result(
+                formatted_result = self._format_json_result(
                     result, request,
-                    total_time_ms, inference_time_ms, preprocessing_time_ms,
-                    audio_duration_s, real_time_factor, vram_used_mb
+                    timer.total_ms, inference_time_ms, preprocessing_time_ms,
+                    audio_duration_s, 0, vram_used_mb
                 )
             else:
-                return self._format_srt_result(
+                formatted_result = self._format_srt_result(
                     result, request,
-                    total_time_ms, inference_time_ms,
+                    timer.total_ms, inference_time_ms,
                     audio_duration_s
                 )
+            formatting_time_ms = timer.mark("formatting")
+
+            # Stop timer and calculate final metrics
+            timer.stop()
+            total_time_ms = timer.total_ms
+            real_time_factor = calculate_rtf(audio_duration_s, total_time_ms)
+
+            # Update result with final metrics
+            formatted_result.total_time_ms = total_time_ms
+            formatted_result.formatting_time_ms = formatting_time_ms
+            formatted_result.real_time_factor = real_time_factor
+
+            # Log performance summary
+            perf_logger.info(f"[STT] ===== TRANSCRIPTION COMPLETE =====")
+            perf_logger.info(f"[STT] Audio Duration: {audio_duration_s:.2f}s")
+            perf_logger.info(f"[STT] Segments: {segment_count}")
+            perf_logger.info(f"[STT] --- TIMING BREAKDOWN ---")
+            perf_logger.info(f"[STT] Model Load: {format_duration(preprocessing_time_ms)}")
+            perf_logger.info(f"[STT] Inference: {format_duration(inference_time_ms)}")
+            perf_logger.info(f"[STT] Formatting: {format_duration(formatting_time_ms)}")
+            perf_logger.info(f"[STT] Total: {format_duration(total_time_ms)}")
+            perf_logger.info(f"[STT] --- PERFORMANCE ---")
+            perf_logger.info(f"[STT] RTF: {real_time_factor:.3f} ({'faster' if real_time_factor < 1 else 'slower'} than real-time)")
+            perf_logger.info(f"[STT] Speed: {audio_duration_s / (total_time_ms/1000):.2f}x real-time")
+            if vram_used_mb:
+                perf_logger.info(f"[STT] VRAM Used: {vram_used_mb:.0f} MB")
+            perf_logger.info(f"[STT] ================================")
+
+            return formatted_result
 
         except Exception as e:
+            timer.stop()
+            perf_logger.error(f"[STT] FAILED after {format_duration(timer.total_ms)}: {e}")
             logger.error(f"Transcription failed: {e}", exc_info=True)
             return TranscriptionResult(
                 success=False,
@@ -207,6 +267,8 @@ class STTService:
             "metadata": {
                 "engine": request.engine,
                 "model_size": request.model_size,
+                "device": get_optimal_device(),
+                "compute_type": request.compute_type or get_optimal_compute_type(),
                 "language": result.language,
                 "preprocessing": "vad_only" if request.vad_filter else "none",
                 "audio_duration_s": audio_duration_s,

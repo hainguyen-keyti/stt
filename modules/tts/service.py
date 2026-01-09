@@ -7,6 +7,7 @@ Manages multiple TTS engines and provides unified API.
 
 import logging
 import os
+import time
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -18,8 +19,10 @@ from modules.tts.engines.base import (
     VoiceGender,
     SynthesisResult,
 )
+from modules.stt.utils.timing import TaskTimer, format_duration
 
 logger = logging.getLogger(__name__)
+perf_logger = logging.getLogger("perf.TTS")
 
 # Check available engines
 EDGE_TTS_AVAILABLE = False
@@ -199,10 +202,26 @@ class TTSService:
         Returns:
             TTSResult with audio data
         """
+        # Initialize timer
+        timer = TaskTimer("synthesize", module="TTS")
+        timer.start()
+
+        text_length = len(request.text)
+        text_preview = request.text[:50] + "..." if len(request.text) > 50 else request.text
+
+        perf_logger.info(f"[TTS] ===== SYNTHESIS START =====")
+        perf_logger.info(f"[TTS] Text: \"{text_preview}\"")
+        perf_logger.info(f"[TTS] Length: {text_length} chars")
+        perf_logger.info(f"[TTS] Voice: {request.voice_id}")
+        perf_logger.info(f"[TTS] Pitch: {request.pitch}, Speed: {request.speed}")
+
         # Validate request
         error = request.validate()
         if error:
+            perf_logger.error(f"[TTS] Validation failed: {error}")
             return TTSResult(success=False, error=error)
+
+        timer.mark("validation")
 
         # Get engine for voice
         engine = self._get_engine_for_voice(request.voice_id)
@@ -216,6 +235,7 @@ class TTSService:
                 )
                 request.voice_id = voice_id
             else:
+                perf_logger.error(f"[TTS] No TTS engine available")
                 return TTSResult(
                     success=False,
                     error="No TTS engine available"
@@ -223,31 +243,66 @@ class TTSService:
 
         # Get voice info
         voice = self._voices.get(request.voice_id)
+        perf_logger.info(f"[TTS] Engine: {engine.name}")
+
+        timer.mark("engine_select")
 
         # Synthesize
-        result = await engine.synthesize(
-            text=request.text,
-            voice_id=request.voice_id,
-            output_path=request.output_path,
-            pitch=request.pitch,
-            speed=request.speed,
-        )
+        try:
+            result = await engine.synthesize(
+                text=request.text,
+                voice_id=request.voice_id,
+                output_path=request.output_path,
+                pitch=request.pitch,
+                speed=request.speed,
+            )
+            synthesis_time_ms = timer.mark("synthesis")
 
-        return TTSResult(
-            success=result.success,
-            audio_path=result.audio_path,
-            audio_data=result.audio_data,
-            format=result.format,
-            duration_ms=result.duration_ms,
-            processing_time_ms=result.processing_time_ms,
-            error=result.error,
-            voice_id=request.voice_id,
-            voice_name=voice.name if voice else "",
-            engine=engine.name,
-            text=request.text,
-            pitch=request.pitch,
-            speed=request.speed,
-        )
+            timer.stop()
+
+            # Calculate chars per second
+            chars_per_second = (text_length / (timer.total_ms / 1000)) if timer.total_ms > 0 else 0
+
+            # Log performance summary
+            perf_logger.info(f"[TTS] ===== SYNTHESIS COMPLETE =====")
+            perf_logger.info(f"[TTS] --- TIMING BREAKDOWN ---")
+            for step, duration in timer._steps.items():
+                perf_logger.info(f"[TTS] {step}: {format_duration(duration)}")
+            perf_logger.info(f"[TTS] Total: {format_duration(timer.total_ms)}")
+            perf_logger.info(f"[TTS] --- PERFORMANCE ---")
+            perf_logger.info(f"[TTS] Throughput: {chars_per_second:.1f} chars/sec")
+            if result.duration_ms > 0:
+                perf_logger.info(f"[TTS] Audio Duration: {result.duration_ms:.0f}ms")
+            perf_logger.info(f"[TTS] ================================")
+
+            return TTSResult(
+                success=result.success,
+                audio_path=result.audio_path,
+                audio_data=result.audio_data,
+                format=result.format,
+                duration_ms=result.duration_ms,
+                processing_time_ms=timer.total_ms,
+                error=result.error,
+                voice_id=request.voice_id,
+                voice_name=voice.name if voice else "",
+                engine=engine.name,
+                text=request.text,
+                pitch=request.pitch,
+                speed=request.speed,
+            )
+
+        except Exception as e:
+            timer.stop()
+            perf_logger.error(f"[TTS] FAILED after {format_duration(timer.total_ms)}: {e}")
+            return TTSResult(
+                success=False,
+                error=str(e),
+                voice_id=request.voice_id,
+                engine=engine.name if engine else "",
+                text=request.text,
+                pitch=request.pitch,
+                speed=request.speed,
+            )
 
     def list_voices(
         self,
