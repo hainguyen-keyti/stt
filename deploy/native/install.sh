@@ -180,14 +180,11 @@ if [ -d "$INSTALL_DIR/.git" ]; then
     git pull
 else
     echo "Cloning repository..."
-    # Clone to temp and move contents
-    TEMP_DIR=$(mktemp -d)
-    git clone "$REPO_URL" "$TEMP_DIR"
-    # Copy all files including hidden ones
-    shopt -s dotglob 2>/dev/null || true
-    cp -r "$TEMP_DIR"/* "$INSTALL_DIR/"
-    shopt -u dotglob 2>/dev/null || true
-    rm -rf "$TEMP_DIR"
+    # Clone directly to current directory
+    git clone "$REPO_URL" "$INSTALL_DIR/repo_temp"
+    # Move all files including hidden ones using rsync
+    rsync -a "$INSTALL_DIR/repo_temp/" "$INSTALL_DIR/"
+    rm -rf "$INSTALL_DIR/repo_temp"
 fi
 
 # =============================================================================
