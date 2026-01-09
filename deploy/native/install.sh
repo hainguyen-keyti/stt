@@ -183,8 +183,10 @@ else
     # Clone to temp and move contents
     TEMP_DIR=$(mktemp -d)
     git clone "$REPO_URL" "$TEMP_DIR"
-    cp -r "$TEMP_DIR"/* "$INSTALL_DIR/" 2>/dev/null || true
-    cp -r "$TEMP_DIR"/.[!.]* "$INSTALL_DIR/" 2>/dev/null || true
+    # Copy all files including hidden ones
+    shopt -s dotglob 2>/dev/null || true
+    cp -r "$TEMP_DIR"/* "$INSTALL_DIR/"
+    shopt -u dotglob 2>/dev/null || true
     rm -rf "$TEMP_DIR"
 fi
 
