@@ -15,18 +15,12 @@ OS=$(uname -s)
 ARCH=$(uname -m)
 echo "OS: $OS ($ARCH)"
 
-# Save original directory
-ORIGINAL_DIR="$(pwd)"
-
-# Set install directory
-INSTALL_DIR="$HOME/stt"
+# Install directory = current directory
+INSTALL_DIR="$(pwd)"
 TOOLS_DIR="$INSTALL_DIR/.tools"
 
-# Create directories
-mkdir -p "$INSTALL_DIR"
+# Create tools directory
 mkdir -p "$TOOLS_DIR"
-
-cd "$INSTALL_DIR"
 
 # =============================================================================
 # Download Git (portable) if not available
@@ -272,12 +266,9 @@ else
 fi
 
 # =============================================================================
-# Copy .env
+# Setup .env
 # =============================================================================
-if [ -f "$ORIGINAL_DIR/.env" ]; then
-    cp "$ORIGINAL_DIR/.env" .env
-    echo "Copied .env from $ORIGINAL_DIR"
-elif [ ! -f ".env" ]; then
+if [ ! -f ".env" ]; then
     if [ -f ".env.example" ]; then
         cp .env.example .env
         echo "Created .env from .env.example"
@@ -310,12 +301,10 @@ echo "Installation complete!"
 echo "=========================================="
 echo ""
 echo "To start the server:"
-echo "  cd $INSTALL_DIR"
 echo "  ./start.sh"
 echo ""
 echo "Web UI:   http://localhost:8000"
 echo "API Docs: http://localhost:8000/docs"
 echo ""
-echo "To uninstall completely, just delete:"
-echo "  rm -rf $INSTALL_DIR"
+echo "To uninstall, delete this directory"
 echo ""

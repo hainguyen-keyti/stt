@@ -11,16 +11,12 @@ echo 7KT-AI Native Installation
 echo ==========================================
 echo.
 
-REM Save original directory
-set ORIGINAL_DIR=%CD%
-set INSTALL_DIR=%USERPROFILE%\stt
+REM Install directory = current directory
+set INSTALL_DIR=%CD%
 set TOOLS_DIR=%INSTALL_DIR%\.tools
 
-REM Create directories
-mkdir "%INSTALL_DIR%" 2>nul
+REM Create tools directory
 mkdir "%TOOLS_DIR%" 2>nul
-
-cd /d "%INSTALL_DIR%"
 
 REM =============================================================================
 REM Download Git (portable)
@@ -238,18 +234,13 @@ if %ERRORLEVEL% EQU 0 (
 )
 
 REM =============================================================================
-REM Copy .env
+REM Setup .env
 REM =============================================================================
-if exist "%ORIGINAL_DIR%\.env" (
-    copy "%ORIGINAL_DIR%\.env" .env >nul
-    echo Copied .env from %ORIGINAL_DIR%
-) else (
-    if not exist ".env" (
-        if exist ".env.example" (
-            copy .env.example .env >nul
-            echo Created .env from .env.example
-            echo WARNING: Please edit .env to add your configuration
-        )
+if not exist ".env" (
+    if exist ".env.example" (
+        copy .env.example .env >nul
+        echo Created .env from .env.example
+        echo WARNING: Please edit .env to add your configuration
     )
 )
 
@@ -275,14 +266,12 @@ echo Installation complete!
 echo ==========================================
 echo.
 echo To start the server:
-echo   cd %INSTALL_DIR%
 echo   start.bat
 echo.
 echo Web UI:   http://localhost:8000
 echo API Docs: http://localhost:8000/docs
 echo.
-echo To uninstall completely, just delete:
-echo   rmdir /s /q %INSTALL_DIR%
+echo To uninstall, delete this directory
 echo.
 
 pause

@@ -2,42 +2,34 @@
 
 Chạy trực tiếp trên máy để sử dụng **100% tài nguyên phần cứng**.
 
-**Python được tải tự động** - không cần cài Python trước!
+**Tự động tải Python, FFmpeg** - không cần cài trước!
 
 ## Yêu cầu
 
-- Git
-- FFmpeg
+- Git (Mac: Xcode CLT, Linux: package manager, Windows: tự động tải)
 - Node.js 18+ (optional, cho web UI)
-
-**Không cần cài Python** - script sẽ tự tải Python 3.11 vào thư mục project.
 
 ## Cài đặt nhanh
 
 ### Linux/Mac
 ```bash
-# Tải và chạy
+# Tạo thư mục và tải install script
+mkdir my-stt && cd my-stt
 curl -fsSL https://raw.githubusercontent.com/hainguyen-keyti/stt/master/deploy/native/install.sh -o install.sh
 chmod +x install.sh
 ./install.sh
 ```
 
 ### Windows
-1. Download `install.bat`
-2. Double-click để chạy
+1. Tạo thư mục mới
+2. Download `install.bat` vào thư mục đó
+3. Double-click để chạy
 
 ## Khởi động
 
-### Linux/Mac
 ```bash
-cd ~/stt
-./start.sh
-```
-
-### Windows
-```batch
-cd %USERPROFILE%\stt
-start.bat
+./start.sh      # Linux/Mac
+start.bat       # Windows
 ```
 
 ## Truy cập
@@ -57,22 +49,16 @@ start.bat
 
 ## Gỡ cài đặt
 
-Xóa hoàn toàn (bao gồm cả Python):
+Xóa thư mục cài đặt (bao gồm cả Python, FFmpeg):
 
-### Linux/Mac
 ```bash
-rm -rf ~/stt
-```
-
-### Windows
-```batch
-rmdir /s /q %USERPROFILE%\stt
+rm -rf /path/to/install-dir    # Linux/Mac
+rmdir /s /q C:\path\to\dir     # Windows
 ```
 
 ## Cập nhật
 
 ```bash
-cd ~/stt
 git pull
 source venv/bin/activate  # Linux/Mac
 # hoặc: venv\Scripts\activate.bat  # Windows
