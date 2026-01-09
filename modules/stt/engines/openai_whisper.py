@@ -19,6 +19,31 @@ try:
     import whisper
     import torch
     OPENAI_WHISPER_AVAILABLE = True
+
+    # Patch for MPS: find_alignment uses x.double() which MPS doesn't support
+    # We need to move tensor to CPU before converting to float64
+    try:
+        from whisper import timing
+        _original_find_alignment = timing.find_alignment
+
+        def _patched_find_alignment(model, tokenizer, text_tokens, mel, num_frames, **kwargs):
+            # Temporarily move model to CPU for alignment (dtw needs float64)
+            original_device = next(model.parameters()).device
+            if str(original_device) == 'mps':
+                model = model.to('cpu')
+                mel = mel.to('cpu')
+                result = _original_find_alignment(model, tokenizer, text_tokens, mel, num_frames, **kwargs)
+                model.to(original_device)
+                return result
+            return _original_find_alignment(model, tokenizer, text_tokens, mel, num_frames, **kwargs)
+
+        # Only patch if we're actually using MPS
+        if torch.backends.mps.is_available():
+            timing.find_alignment = _patched_find_alignment
+            logger.info("Patched whisper.timing.find_alignment for MPS compatibility")
+    except Exception as e:
+        logger.debug(f"Could not patch find_alignment for MPS: {e}")
+
 except ImportError:
     OPENAI_WHISPER_AVAILABLE = False
     logger.warning("OpenAI Whisper not available. Install with: pip install openai-whisper")
