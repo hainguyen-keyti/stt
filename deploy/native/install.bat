@@ -7,24 +7,91 @@ REM ============================================================================
 echo ==========================================
 echo 7KT-AI Native Installation
 echo ==========================================
+echo.
+
+REM =============================================================================
+REM Check Prerequisites
+REM =============================================================================
+echo Checking prerequisites...
+echo.
+
+set MISSING=
 
 REM Check Python
 python --version >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
-    echo ERROR: Python is required but not installed
-    echo Please install Python 3.10+ from https://www.python.org/downloads/
-    echo Make sure to check "Add Python to PATH" during installation
+    echo [X] Python: not found
+    set MISSING=%MISSING% Python
+) else (
+    for /f "tokens=2 delims= " %%v in ('python --version 2^>^&1') do echo [OK] Python: %%v
+)
+
+REM Check Git
+git --version >nul 2>&1
+if %ERRORLEVEL% NEQ 0 (
+    echo [X] Git: not found
+    set MISSING=%MISSING% Git
+) else (
+    for /f "tokens=3 delims= " %%v in ('git --version 2^>^&1') do echo [OK] Git: %%v
+)
+
+REM Check FFmpeg
+ffmpeg -version >nul 2>&1
+if %ERRORLEVEL% NEQ 0 (
+    echo [X] FFmpeg: not found
+    set MISSING=%MISSING% FFmpeg
+) else (
+    echo [OK] FFmpeg: installed
+)
+
+REM Check Node.js (optional)
+npm --version >nul 2>&1
+if %ERRORLEVEL% NEQ 0 (
+    echo [!] Node.js: not found ^(optional, for web UI^)
+) else (
+    for /f %%v in ('node --version 2^>^&1') do echo [OK] Node.js: %%v
+)
+
+REM If missing prerequisites, show install instructions
+if not "%MISSING%"=="" (
+    echo.
+    echo ==========================================
+    echo Missing prerequisites:%MISSING%
+    echo ==========================================
+    echo.
+    echo Please install the following:
+    echo.
+    echo   Python 3.10+:  https://www.python.org/downloads/
+    echo                  [!] Check "Add Python to PATH" when installing
+    echo.
+    echo   Git:           https://git-scm.com/download/win
+    echo.
+    echo   FFmpeg:        https://github.com/BtbN/FFmpeg-Builds/releases
+    echo                  Download ffmpeg-master-latest-win64-gpl.zip
+    echo                  Extract to C:\ffmpeg and add C:\ffmpeg\bin to PATH
+    echo.
+    echo   Node.js:       https://nodejs.org/ ^(optional^)
+    echo.
+    echo Or install with winget:
+    echo   winget install Python.Python.3.11
+    echo   winget install Git.Git
+    echo   winget install Gyan.FFmpeg
+    echo   winget install OpenJS.NodeJS
+    echo.
+    echo After installing, run this script again.
     pause
     exit /b 1
 )
 
-for /f "tokens=2 delims= " %%v in ('python --version 2^>^&1') do set PYTHON_VERSION=%%v
-echo Python: %PYTHON_VERSION%
+echo.
+echo All prerequisites OK!
+echo.
 
-REM Set install directory
+REM =============================================================================
+REM Clone Repository
+REM =============================================================================
 set INSTALL_DIR=%USERPROFILE%\stt
 
-REM Clone or update repository
 if exist "%INSTALL_DIR%" (
     echo Updating existing installation...
     cd /d "%INSTALL_DIR%"
@@ -35,9 +102,17 @@ if exist "%INSTALL_DIR%" (
     cd /d "%INSTALL_DIR%"
 )
 
+REM =============================================================================
+REM Installation
+REM =============================================================================
+
 REM Create virtual environment
-echo Creating virtual environment...
-python -m venv venv
+if not exist "venv" (
+    echo.
+    echo Creating virtual environment...
+    python -m venv venv
+)
+
 call venv\Scripts\activate.bat
 
 REM Upgrade pip
@@ -80,25 +155,22 @@ if %HAS_GPU% EQU 1 (
 
 REM Build frontend
 echo.
-echo Building frontend...
-where npm >nul 2>&1
+npm --version >nul 2>&1
 if %ERRORLEVEL% EQU 0 (
+    echo Building frontend...
     cd web
     npm install
     npm run build
     cd ..
 ) else (
-    echo WARNING: npm not found, skipping frontend build
-    echo Install Node.js from https://nodejs.org/ if you need the web UI
+    echo Skipping frontend build ^(Node.js not installed^)
 )
 
 REM Create .env if not exists
-if not exist .env (
-    echo Creating .env file...
-    if exist .env.example (
+if not exist ".env" (
+    if exist ".env.example" (
         copy .env.example .env
-    ) else (
-        echo # Add your configuration here > .env
+        echo Created .env from .env.example
     )
 )
 
@@ -111,9 +183,8 @@ echo To start the server:
 echo   cd %INSTALL_DIR%
 echo   start.bat
 echo.
-echo Or manually:
-echo   venv\Scripts\activate.bat
-echo   python -m uvicorn api.main:app --host 0.0.0.0 --port 8000
+echo Web UI:   http://localhost:8000
+echo API Docs: http://localhost:8000/docs
 echo.
 
 pause
