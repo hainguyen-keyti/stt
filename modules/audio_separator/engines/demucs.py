@@ -29,7 +29,6 @@ from modules.stt.utils.gpu import (
     get_optimal_device,
     get_gpu_info,
     clear_gpu_cache,
-    is_gpu_available,
 )
 
 logger = logging.getLogger(__name__)
@@ -88,17 +87,7 @@ class DemucsEngine(SeparatorEngine):
             logger.info(f"Loading Demucs model: {self._model_name}")
             logger.info(f"Using device: {device} ({gpu_info.get('device_name', 'CPU')})")
 
-            # Configure separator based on device
-            # audio-separator uses different device names
-            if device == "cuda":
-                use_cpu = False
-            elif device == "mps":
-                # MPS support depends on audio-separator version
-                # Some models may not work with MPS, fallback to CPU if needed
-                use_cpu = False  # Will use MPS if available
-            else:
-                use_cpu = True
-
+            # audio-separator auto-detects GPU (CUDA/MPS) at runtime
             self._separator = Separator(
                 output_dir=self._output_dir,
                 output_format="wav",
