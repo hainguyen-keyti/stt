@@ -563,6 +563,24 @@ def get_memory_info() -> Dict[str, float]:
                     info["used_mb"] = info["total_mb"] - info["available_mb"]
                     if info["total_mb"] > 0:
                         info["usage_percent"] = round((info["used_mb"] / info["total_mb"]) * 100, 2)
+            elif system == "Windows":
+                import subprocess
+                # Use wmic to get memory info on Windows
+                result = subprocess.run(
+                    ["wmic", "OS", "get", "TotalVisibleMemorySize,FreePhysicalMemory", "/value"],
+                    capture_output=True, text=True, timeout=5, shell=True
+                )
+                if result.returncode == 0:
+                    for line in result.stdout.strip().split('\n'):
+                        line = line.strip()
+                        if line.startswith("TotalVisibleMemorySize="):
+                            # wmic returns KB
+                            info["total_mb"] = round(int(line.split('=')[1]) / 1024, 2)
+                        elif line.startswith("FreePhysicalMemory="):
+                            info["available_mb"] = round(int(line.split('=')[1]) / 1024, 2)
+                    info["used_mb"] = info["total_mb"] - info["available_mb"]
+                    if info["total_mb"] > 0:
+                        info["usage_percent"] = round((info["used_mb"] / info["total_mb"]) * 100, 2)
         except Exception:
             pass
 

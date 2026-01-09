@@ -173,11 +173,43 @@ REM ============================================================================
 echo.
 echo Detecting hardware...
 set "HAS_GPU=0"
+set "CUDA_INDEX=cu121"
+
 nvidia-smi >nul 2>&1
 if %ERRORLEVEL% EQU 0 (
-    echo NVIDIA GPU detected - Installing PyTorch with CUDA
-    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+    echo NVIDIA GPU detected
     set "HAS_GPU=1"
+
+    REM Get GPU compute capability to determine CUDA version
+    for /f "tokens=*" %%i in ('nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2^>nul') do set "COMPUTE_CAP=%%i"
+
+    REM RTX 50 series (Blackwell) needs CUDA 12.8+
+    REM RTX 40 series (Ada) needs CUDA 11.8+ (compute 8.9)
+    REM RTX 30 series (Ampere) needs CUDA 11.1+ (compute 8.6)
+
+    echo GPU Compute Capability: !COMPUTE_CAP!
+
+    REM Check for very new GPUs (compute >= 12.0, e.g., RTX 50 series)
+    echo !COMPUTE_CAP! | findstr /R "^12\. ^13\. ^14\." >nul
+    if !ERRORLEVEL! EQU 0 (
+        echo RTX 50 series or newer detected - Using CUDA 12.8
+        set "CUDA_INDEX=cu128"
+    ) else (
+        REM For older GPUs, cu121 is fine
+        echo Using CUDA 12.1
+        set "CUDA_INDEX=cu121"
+    )
+
+    echo Installing PyTorch with !CUDA_INDEX!...
+    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/!CUDA_INDEX!
+
+    REM If cu128 fails, fallback to cu124
+    if !ERRORLEVEL! NEQ 0 (
+        if "!CUDA_INDEX!"=="cu128" (
+            echo cu128 not available, trying cu124...
+            pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+        )
+    )
 ) else (
     echo No NVIDIA GPU detected - Installing PyTorch CPU
     pip install torch torchvision torchaudio
