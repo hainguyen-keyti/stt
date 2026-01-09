@@ -11,212 +11,171 @@ echo 7KT-AI Native Installation
 echo ==========================================
 echo.
 
-REM Install directory = directory where script is run from (not script location)
-REM Use pushd/popd to handle paths correctly
-set INSTALL_DIR=%CD%
-set TOOLS_DIR=%INSTALL_DIR%\.tools
+REM Install directory = current directory where user runs the script
+set "INSTALL_DIR=%CD%"
+set "TOOLS_DIR=%INSTALL_DIR%\.tools"
 
-REM Change to install directory
-cd /d "%INSTALL_DIR%"
+echo Install directory: %INSTALL_DIR%
 
 REM Create tools directory
-mkdir "%TOOLS_DIR%" 2>nul
+if not exist "%TOOLS_DIR%" mkdir "%TOOLS_DIR%"
 
 REM =============================================================================
-REM Download Git (portable) - FIRST to enable cloning
+REM Download Git (portable)
 REM =============================================================================
-:download_git
-set GIT_DIR=%TOOLS_DIR%\git
-set GIT_BIN=%GIT_DIR%\cmd\git.exe
+set "GIT_DIR=%TOOLS_DIR%\git"
+set "GIT_BIN=%GIT_DIR%\cmd\git.exe"
 
 if exist "%GIT_BIN%" (
     echo [OK] Git: already downloaded
-    goto :git_done
+) else (
+    echo Downloading portable Git...
+    set "GIT_VERSION=2.43.0"
+    set "GIT_URL=https://github.com/git-for-windows/git/releases/download/v2.43.0.windows.1/PortableGit-2.43.0-64-bit.7z.exe"
+
+    if not exist "%GIT_DIR%" mkdir "%GIT_DIR%"
+    powershell -Command "Invoke-WebRequest -Uri '!GIT_URL!' -OutFile '%TOOLS_DIR%\git-portable.exe'"
+
+    echo Extracting Git...
+    "%TOOLS_DIR%\git-portable.exe" -o"%GIT_DIR%" -y
+    del "%TOOLS_DIR%\git-portable.exe"
+    echo Git installed to: %GIT_DIR%
 )
-
-echo Downloading portable Git...
-set GIT_VERSION=2.43.0
-set GIT_URL=https://github.com/git-for-windows/git/releases/download/v%GIT_VERSION%.windows.1/PortableGit-%GIT_VERSION%-64-bit.7z.exe
-
-mkdir "%GIT_DIR%" 2>nul
-powershell -Command "Invoke-WebRequest -Uri '%GIT_URL%' -OutFile '%TOOLS_DIR%\git-portable.exe'"
-
-REM Extract (self-extracting archive)
-echo Extracting Git...
-"%TOOLS_DIR%\git-portable.exe" -o"%GIT_DIR%" -y
-del "%TOOLS_DIR%\git-portable.exe"
-
-echo Git installed to: %GIT_DIR%
-
-:git_done
-set PATH=%GIT_DIR%\cmd;%PATH%
+set "PATH=%GIT_DIR%\cmd;%PATH%"
 
 REM =============================================================================
-REM Clone/Update Repository FIRST (to get latest install script)
+REM Clone/Update Repository
 REM =============================================================================
 if exist "%INSTALL_DIR%\.git" (
     echo Updating repository...
     "%GIT_BIN%" pull
 ) else (
     echo Cloning repository...
-    REM Clone to temp and move contents
-    set TEMP_CLONE=%TEMP%\stt-temp-%RANDOM%
+    set "TEMP_CLONE=%TEMP%\stt-clone-%RANDOM%"
     "%GIT_BIN%" clone https://github.com/hainguyen-keyti/stt.git "!TEMP_CLONE!"
-    xcopy /E /Y /H "!TEMP_CLONE!\*" "%INSTALL_DIR%\" >nul
+    if errorlevel 1 (
+        echo ERROR: Failed to clone repository
+        pause
+        exit /b 1
+    )
+    xcopy /E /Y /H /Q "!TEMP_CLONE!\*" "%INSTALL_DIR%\" >nul
     rmdir /s /q "!TEMP_CLONE!"
-
-    REM Re-run the new install script after cloning
-    echo.
-    echo Repository cloned. Re-running updated install script...
-    echo.
-    call "!INSTALL_DIR!\deploy\native\install.bat"
-    exit /b
+    echo Repository cloned successfully.
 )
 
 REM =============================================================================
 REM Download FFmpeg (portable)
 REM =============================================================================
-:download_ffmpeg
-set FFMPEG_DIR=%TOOLS_DIR%\ffmpeg
+set "FFMPEG_DIR=%TOOLS_DIR%\ffmpeg"
 
 if exist "%FFMPEG_DIR%\ffmpeg.exe" (
     echo [OK] FFmpeg: already downloaded
-    goto :ffmpeg_done
+) else (
+    echo Downloading portable FFmpeg...
+    if not exist "%FFMPEG_DIR%" mkdir "%FFMPEG_DIR%"
+    powershell -Command "Invoke-WebRequest -Uri 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip' -OutFile '%TOOLS_DIR%\ffmpeg.zip'"
+
+    echo Extracting FFmpeg...
+    powershell -Command "Expand-Archive -Path '%TOOLS_DIR%\ffmpeg.zip' -DestinationPath '%TOOLS_DIR%' -Force"
+
+    for /d %%i in ("%TOOLS_DIR%\ffmpeg-*") do (
+        xcopy /E /Y /Q "%%i\bin\*" "%FFMPEG_DIR%\" >nul
+        rmdir /s /q "%%i"
+    )
+    del "%TOOLS_DIR%\ffmpeg.zip"
+    echo FFmpeg installed to: %FFMPEG_DIR%
 )
-
-echo Downloading portable FFmpeg...
-set FFMPEG_URL=https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip
-
-mkdir "%FFMPEG_DIR%" 2>nul
-powershell -Command "Invoke-WebRequest -Uri '%FFMPEG_URL%' -OutFile '%TOOLS_DIR%\ffmpeg.zip'"
-
-REM Extract
-echo Extracting FFmpeg...
-powershell -Command "Expand-Archive -Path '%TOOLS_DIR%\ffmpeg.zip' -DestinationPath '%TOOLS_DIR%' -Force"
-
-REM Move files from subfolder
-for /d %%i in ("%TOOLS_DIR%\ffmpeg-*") do (
-    xcopy /E /Y "%%i\bin\*" "%FFMPEG_DIR%\" >nul
-    rmdir /s /q "%%i"
-)
-del "%TOOLS_DIR%\ffmpeg.zip"
-
-echo FFmpeg installed to: %FFMPEG_DIR%
-
-:ffmpeg_done
-set PATH=%FFMPEG_DIR%;%PATH%
+set "PATH=%FFMPEG_DIR%;%PATH%"
 
 REM =============================================================================
-REM Download Python (standalone installer version, not embeddable)
+REM Download Python (from NuGet - includes pip and venv)
 REM =============================================================================
-:download_python
-set PYTHON_VERSION=3.11.9
-set PYTHON_DIR=%TOOLS_DIR%\python
-set PYTHON_BIN=%PYTHON_DIR%\python.exe
-set PIP_BIN=%PYTHON_DIR%\Scripts\pip.exe
+set "PYTHON_VERSION=3.11.9"
+set "PYTHON_DIR=%TOOLS_DIR%\python"
+set "PYTHON_BIN=%PYTHON_DIR%\python.exe"
 
 if exist "%PYTHON_BIN%" (
     echo [OK] Python: already downloaded
-    goto :python_done
+) else (
+    echo Downloading Python %PYTHON_VERSION%...
+    if not exist "%PYTHON_DIR%" mkdir "%PYTHON_DIR%"
+    powershell -Command "Invoke-WebRequest -Uri 'https://www.nuget.org/api/v2/package/python/%PYTHON_VERSION%' -OutFile '%TOOLS_DIR%\python.zip'"
+
+    echo Extracting Python...
+    powershell -Command "Expand-Archive -Path '%TOOLS_DIR%\python.zip' -DestinationPath '%TOOLS_DIR%\python-temp' -Force"
+
+    xcopy /E /Y /Q "%TOOLS_DIR%\python-temp\tools\*" "%PYTHON_DIR%\" >nul
+    rmdir /s /q "%TOOLS_DIR%\python-temp"
+    del "%TOOLS_DIR%\python.zip"
+    echo Python installed to: %PYTHON_DIR%
 )
-
-echo Downloading Python %PYTHON_VERSION%...
-REM Use nuget package which includes full Python with pip and venv
-set PYTHON_URL=https://www.nuget.org/api/v2/package/python/%PYTHON_VERSION%
-
-mkdir "%PYTHON_DIR%" 2>nul
-REM Download as .zip (nupkg is just a zip file)
-powershell -Command "Invoke-WebRequest -Uri '%PYTHON_URL%' -OutFile '%TOOLS_DIR%\python.zip'"
-
-REM Extract
-echo Extracting Python...
-powershell -Command "Expand-Archive -Path '%TOOLS_DIR%\python.zip' -DestinationPath '%TOOLS_DIR%\python-temp' -Force"
-
-REM Move from tools subfolder
-xcopy /E /Y "%TOOLS_DIR%\python-temp\tools\*" "%PYTHON_DIR%\" >nul
-rmdir /s /q "%TOOLS_DIR%\python-temp"
-del "%TOOLS_DIR%\python.zip"
-
-echo Python installed to: %PYTHON_DIR%
-
-:python_done
-set PATH=%PYTHON_DIR%;%PYTHON_DIR%\Scripts;%PATH%
+set "PATH=%PYTHON_DIR%;%PYTHON_DIR%\Scripts;%PATH%"
 
 REM =============================================================================
 REM Download Node.js (portable)
 REM =============================================================================
-:download_node
-set NODE_VERSION=20.18.1
-set NODE_DIR=%TOOLS_DIR%\node
-set NODE_BIN=%NODE_DIR%\node.exe
-set NPM_BIN=%NODE_DIR%\npm.cmd
+set "NODE_VERSION=20.18.1"
+set "NODE_DIR=%TOOLS_DIR%\node"
+set "NODE_BIN=%NODE_DIR%\node.exe"
+set "NPM_BIN=%NODE_DIR%\npm.cmd"
 
 if exist "%NODE_BIN%" (
     echo [OK] Node.js: already downloaded
-    goto :node_done
+) else (
+    echo Downloading Node.js %NODE_VERSION%...
+    if not exist "%NODE_DIR%" mkdir "%NODE_DIR%"
+    powershell -Command "Invoke-WebRequest -Uri 'https://nodejs.org/dist/v%NODE_VERSION%/node-v%NODE_VERSION%-win-x64.zip' -OutFile '%TOOLS_DIR%\node.zip'"
+
+    echo Extracting Node.js...
+    powershell -Command "Expand-Archive -Path '%TOOLS_DIR%\node.zip' -DestinationPath '%TOOLS_DIR%' -Force"
+
+    for /d %%i in ("%TOOLS_DIR%\node-v*") do (
+        xcopy /E /Y /Q "%%i\*" "%NODE_DIR%\" >nul
+        rmdir /s /q "%%i"
+    )
+    del "%TOOLS_DIR%\node.zip"
+    echo Node.js installed to: %NODE_DIR%
 )
-
-echo Downloading Node.js %NODE_VERSION%...
-set NODE_URL=https://nodejs.org/dist/v%NODE_VERSION%/node-v%NODE_VERSION%-win-x64.zip
-
-mkdir "%NODE_DIR%" 2>nul
-powershell -Command "Invoke-WebRequest -Uri '%NODE_URL%' -OutFile '%TOOLS_DIR%\node.zip'"
-
-REM Extract
-echo Extracting Node.js...
-powershell -Command "Expand-Archive -Path '%TOOLS_DIR%\node.zip' -DestinationPath '%TOOLS_DIR%' -Force"
-
-REM Move from subfolder
-for /d %%i in ("%TOOLS_DIR%\node-v*") do (
-    xcopy /E /Y "%%i\*" "%NODE_DIR%\" >nul
-    rmdir /s /q "%%i"
-)
-del "%TOOLS_DIR%\node.zip"
-
-echo Node.js installed to: %NODE_DIR%
-
-:node_done
-set PATH=%NODE_DIR%;%PATH%
+set "PATH=%NODE_DIR%;%PATH%"
 
 REM Show status
 echo.
-echo [OK] Git: downloaded
-echo [OK] FFmpeg: downloaded
-echo [OK] Python: downloaded
-echo [OK] Node.js: downloaded
-
-echo.
-echo All tools ready!
+echo ==========================================
+echo All tools downloaded:
+echo   Git:    %GIT_DIR%
+echo   FFmpeg: %FFMPEG_DIR%
+echo   Python: %PYTHON_DIR%
+echo   Node:   %NODE_DIR%
+echo ==========================================
 echo.
 
 REM =============================================================================
 REM Create virtual environment
 REM =============================================================================
-if not exist "venv" (
-    echo.
+if not exist "%INSTALL_DIR%\venv" (
     echo Creating virtual environment...
-    "%PYTHON_BIN%" -m venv venv
+    "%PYTHON_BIN%" -m venv "%INSTALL_DIR%\venv"
 )
 
-call venv\Scripts\activate.bat
+call "%INSTALL_DIR%\venv\Scripts\activate.bat"
 
 REM Upgrade pip
-"%PYTHON_DIR%\python.exe" -m pip install --upgrade pip
+"%PYTHON_BIN%" -m pip install --upgrade pip
 
 REM =============================================================================
 REM Detect NVIDIA GPU and install PyTorch
 REM =============================================================================
 echo.
 echo Detecting hardware...
+set "HAS_GPU=0"
 nvidia-smi >nul 2>&1
 if %ERRORLEVEL% EQU 0 (
     echo NVIDIA GPU detected - Installing PyTorch with CUDA
     pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-    set HAS_GPU=1
+    set "HAS_GPU=1"
 ) else (
     echo No NVIDIA GPU detected - Installing PyTorch CPU
     pip install torch torchvision torchaudio
-    set HAS_GPU=0
 )
 
 REM =============================================================================
@@ -224,7 +183,7 @@ REM Install dependencies
 REM =============================================================================
 echo.
 echo Installing dependencies...
-pip install -r requirements.txt
+pip install -r "%INSTALL_DIR%\requirements.txt"
 
 echo Installing ASR engines...
 pip install faster-whisper openai-whisper
@@ -233,7 +192,7 @@ echo Installing TTS engines...
 pip install edge-tts gTTS pydub
 
 echo Installing audio separator...
-if %HAS_GPU% EQU 1 (
+if "!HAS_GPU!"=="1" (
     pip install "audio-separator[gpu]" soundfile
 ) else (
     pip install "audio-separator[cpu]" soundfile
@@ -244,26 +203,22 @@ REM Build frontend
 REM =============================================================================
 echo.
 echo Building frontend...
-echo DEBUG: INSTALL_DIR=%INSTALL_DIR%
-echo DEBUG: NPM_BIN=%NPM_BIN%
-echo DEBUG: Changing to %INSTALL_DIR%\web
-cd /d "%INSTALL_DIR%\web"
+pushd "%INSTALL_DIR%\web"
 if errorlevel 1 (
-    echo ERROR: Cannot cd to web directory
-    echo Trying alternative: %CD%\web
-    cd /d "%CD%\web"
+    echo ERROR: web directory not found at %INSTALL_DIR%\web
+    pause
+    exit /b 1
 )
-echo DEBUG: Current directory is %CD%
-"%NPM_BIN%" install
-"%NPM_BIN%" run build
-cd /d "%INSTALL_DIR%"
+call "%NPM_BIN%" install
+call "%NPM_BIN%" run build
+popd
 
 REM =============================================================================
 REM Setup .env
 REM =============================================================================
-if not exist ".env" (
-    if exist ".env.example" (
-        copy .env.example .env >nul
+if not exist "%INSTALL_DIR%\.env" (
+    if exist "%INSTALL_DIR%\.env.example" (
+        copy "%INSTALL_DIR%\.env.example" "%INSTALL_DIR%\.env" >nul
         echo Created .env from .env.example
         echo WARNING: Please edit .env to add your configuration
     )
@@ -275,7 +230,7 @@ REM ============================================================================
 (
 echo @echo off
 echo cd /d "%%~dp0"
-echo set PATH=%%~dp0.tools\node;%%~dp0.tools\ffmpeg;%%~dp0.tools\git\cmd;%%~dp0.tools\python;%%~dp0.tools\python\Scripts;%%PATH%%
+echo set "PATH=%%~dp0.tools\node;%%~dp0.tools\ffmpeg;%%~dp0.tools\git\cmd;%%~dp0.tools\python;%%~dp0.tools\python\Scripts;%%PATH%%"
 echo call venv\Scripts\activate.bat
 echo echo ==========================================
 echo echo 7KT-AI Server
