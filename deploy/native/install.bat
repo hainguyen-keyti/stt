@@ -173,46 +173,57 @@ REM ============================================================================
 echo.
 echo Detecting hardware...
 set "HAS_GPU=0"
-set "CUDA_INDEX=cu121"
+set "PYTORCH_INSTALLED=0"
 
 nvidia-smi >nul 2>&1
 if %ERRORLEVEL% EQU 0 (
     echo NVIDIA GPU detected
     set "HAS_GPU=1"
 
-    REM Get GPU compute capability to determine CUDA version
-    for /f "tokens=*" %%i in ('nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2^>nul') do set "COMPUTE_CAP=%%i"
+    REM Get GPU name to detect RTX 50 series
+    for /f "tokens=*" %%i in ('nvidia-smi --query-gpu=name --format=csv,noheader 2^>nul') do set "GPU_NAME=%%i"
+    echo GPU: !GPU_NAME!
 
-    REM RTX 50 series (Blackwell) needs CUDA 12.8+
-    REM RTX 40 series (Ada) needs CUDA 11.8+ (compute 8.9)
-    REM RTX 30 series (Ampere) needs CUDA 11.1+ (compute 8.6)
-
-    echo GPU Compute Capability: !COMPUTE_CAP!
-
-    REM Check for very new GPUs (compute >= 12.0, e.g., RTX 50 series)
-    echo !COMPUTE_CAP! | findstr /R "^12\. ^13\. ^14\." >nul
+    REM Check for RTX 50 series (5070, 5080, 5090, etc.)
+    echo !GPU_NAME! | findstr /I "5070 5080 5090 50" >nul
     if !ERRORLEVEL! EQU 0 (
-        echo RTX 50 series or newer detected - Using CUDA 12.8
-        set "CUDA_INDEX=cu128"
-    ) else (
-        REM For older GPUs, cu121 is fine
-        echo Using CUDA 12.1
-        set "CUDA_INDEX=cu121"
+        echo RTX 50 series detected - Trying latest CUDA versions...
+
+        REM Try cu128 first (newest)
+        echo Trying CUDA 12.8...
+        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128 >nul 2>&1
+        if !ERRORLEVEL! EQU 0 (
+            echo PyTorch with CUDA 12.8 installed successfully
+            set "PYTORCH_INSTALLED=1"
+        ) else (
+            REM Try cu126
+            echo cu128 not available, trying CUDA 12.6...
+            pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126 >nul 2>&1
+            if !ERRORLEVEL! EQU 0 (
+                echo PyTorch with CUDA 12.6 installed successfully
+                set "PYTORCH_INSTALLED=1"
+            ) else (
+                REM Try cu124
+                echo cu126 not available, trying CUDA 12.4...
+                pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+                if !ERRORLEVEL! EQU 0 (
+                    echo PyTorch with CUDA 12.4 installed successfully
+                    set "PYTORCH_INSTALLED=1"
+                )
+            )
+        )
     )
 
-    echo Installing PyTorch with !CUDA_INDEX!...
-    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/!CUDA_INDEX!
-
-    REM If cu128 fails, fallback to cu124
-    if !ERRORLEVEL! NEQ 0 (
-        if "!CUDA_INDEX!"=="cu128" (
-            echo cu128 not available, trying cu124...
-            pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
-        )
+    REM For other NVIDIA GPUs or if RTX 50 install failed
+    if "!PYTORCH_INSTALLED!"=="0" (
+        echo Installing PyTorch with CUDA 12.1...
+        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+        set "PYTORCH_INSTALLED=1"
     )
 ) else (
     echo No NVIDIA GPU detected - Installing PyTorch CPU
     pip install torch torchvision torchaudio
+    set "PYTORCH_INSTALLED=1"
 )
 
 REM =============================================================================
