@@ -180,12 +180,16 @@ if %ERRORLEVEL% EQU 0 (
     echo NVIDIA GPU detected
     set "HAS_GPU=1"
 
-    REM Get GPU name to detect RTX 50 series
-    for /f "tokens=*" %%i in ('nvidia-smi --query-gpu=name --format=csv,noheader 2^>nul') do set "GPU_NAME=%%i"
+    REM Get GPU name using nvidia-smi -L (more compatible)
+    for /f "tokens=*" %%i in ('nvidia-smi -L 2^>nul') do (
+        set "GPU_NAME=%%i"
+        goto :got_gpu_name
+    )
+    :got_gpu_name
     echo GPU: !GPU_NAME!
 
     REM Check for RTX 50 series (5070, 5080, 5090, etc.)
-    echo !GPU_NAME! | findstr /I "5070 5080 5090 50" >nul
+    echo !GPU_NAME! | findstr /I "5070 5080 5090 RTX 50" >nul
     if !ERRORLEVEL! EQU 0 (
         echo RTX 50 series detected - Trying latest CUDA versions...
 
