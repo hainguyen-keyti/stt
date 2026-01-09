@@ -69,6 +69,12 @@ class FasterWhisperEngine(ASREngine):
             download_root = config.get("download_root", None)
             local_files_only = config.get("local_files_only", False)
 
+            # faster-whisper (CTranslate2) doesn't support MPS, fallback to CPU
+            if self.device == "mps":
+                logger.warning("faster-whisper doesn't support MPS, falling back to CPU with int8")
+                self.device = "cpu"
+                self.compute_type = "int8"
+
             logger.info(
                 f"Loading faster-whisper model: {model_size}",
                 extra={
