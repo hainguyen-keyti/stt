@@ -116,19 +116,48 @@ echo Python installed to: %PYTHON_DIR%
 :python_done
 set PATH=%PYTHON_DIR%;%PYTHON_DIR%\Scripts;%PATH%
 
+REM =============================================================================
+REM Download Node.js (portable)
+REM =============================================================================
+:download_node
+set NODE_VERSION=20.18.1
+set NODE_DIR=%TOOLS_DIR%\node
+set NODE_BIN=%NODE_DIR%\node.exe
+set NPM_BIN=%NODE_DIR%\npm.cmd
+
+if exist "%NODE_BIN%" (
+    echo [OK] Node.js: already downloaded
+    goto :node_done
+)
+
+echo Downloading Node.js %NODE_VERSION%...
+set NODE_URL=https://nodejs.org/dist/v%NODE_VERSION%/node-v%NODE_VERSION%-win-x64.zip
+
+mkdir "%NODE_DIR%" 2>nul
+powershell -Command "Invoke-WebRequest -Uri '%NODE_URL%' -OutFile '%TOOLS_DIR%\node.zip'"
+
+REM Extract
+echo Extracting Node.js...
+powershell -Command "Expand-Archive -Path '%TOOLS_DIR%\node.zip' -DestinationPath '%TOOLS_DIR%' -Force"
+
+REM Move from subfolder
+for /d %%i in ("%TOOLS_DIR%\node-v*") do (
+    xcopy /E /Y "%%i\*" "%NODE_DIR%\" >nul
+    rmdir /s /q "%%i"
+)
+del "%TOOLS_DIR%\node.zip"
+
+echo Node.js installed to: %NODE_DIR%
+
+:node_done
+set PATH=%NODE_DIR%;%PATH%
+
 REM Show status
 echo.
 echo [OK] Git: downloaded
 echo [OK] FFmpeg: downloaded
 echo [OK] Python: downloaded
-
-REM Check Node.js (optional)
-npm --version >nul 2>&1
-if %ERRORLEVEL% NEQ 0 (
-    echo [!] Node.js: not found ^(optional, for web UI^)
-) else (
-    for /f %%v in ('node --version 2^>^&1') do echo [OK] Node.js: %%v
-)
+echo [OK] Node.js: downloaded
 
 echo.
 echo All tools ready!
@@ -200,19 +229,14 @@ if %HAS_GPU% EQU 1 (
 )
 
 REM =============================================================================
-REM Build frontend (optional)
+REM Build frontend
 REM =============================================================================
 echo.
-npm --version >nul 2>&1
-if %ERRORLEVEL% EQU 0 (
-    echo Building frontend...
-    cd web
-    npm install
-    npm run build
-    cd ..
-) else (
-    echo Skipping frontend build ^(Node.js not installed^)
-)
+echo Building frontend...
+cd web
+"%NPM_BIN%" install
+"%NPM_BIN%" run build
+cd ..
 
 REM =============================================================================
 REM Setup .env
@@ -231,7 +255,7 @@ REM ============================================================================
 (
 echo @echo off
 echo cd /d "%%~dp0"
-echo set PATH=%%~dp0.tools\ffmpeg;%%~dp0.tools\git\cmd;%%~dp0.tools\python;%%~dp0.tools\python\Scripts;%%PATH%%
+echo set PATH=%%~dp0.tools\node;%%~dp0.tools\ffmpeg;%%~dp0.tools\git\cmd;%%~dp0.tools\python;%%~dp0.tools\python\Scripts;%%PATH%%
 echo call venv\Scripts\activate.bat
 echo echo ==========================================
 echo echo 7KT-AI Server
