@@ -87,6 +87,9 @@ echo.
 echo All prerequisites OK!
 echo.
 
+REM Save original directory (where user runs script from)
+set ORIGINAL_DIR=%CD%
+
 REM =============================================================================
 REM Clone Repository
 REM =============================================================================
@@ -166,11 +169,17 @@ if %ERRORLEVEL% EQU 0 (
     echo Skipping frontend build ^(Node.js not installed^)
 )
 
-REM Create .env if not exists
-if not exist ".env" (
-    if exist ".env.example" (
-        copy .env.example .env
-        echo Created .env from .env.example
+REM Copy .env from original directory if provided, otherwise use .env.example
+if exist "%ORIGINAL_DIR%\.env" (
+    copy "%ORIGINAL_DIR%\.env" .env
+    echo Copied .env from %ORIGINAL_DIR%
+) else (
+    if not exist ".env" (
+        if exist ".env.example" (
+            copy .env.example .env
+            echo Created .env from .env.example
+            echo WARNING: Please edit .env to add your configuration
+        )
     )
 )
 

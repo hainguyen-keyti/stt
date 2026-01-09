@@ -98,6 +98,9 @@ fi
 echo ""
 echo "All prerequisites OK!"
 
+# Save original directory (where user runs script from)
+ORIGINAL_DIR="$(pwd)"
+
 # =============================================================================
 # Clone Repository
 # =============================================================================
@@ -168,11 +171,15 @@ else
     echo "Skipping frontend build (Node.js not installed)"
 fi
 
-# Create .env if not exists
-if [ ! -f ".env" ]; then
+# Copy .env from original directory if provided, otherwise use .env.example
+if [ -f "$ORIGINAL_DIR/.env" ]; then
+    cp "$ORIGINAL_DIR/.env" .env
+    echo "Copied .env from $ORIGINAL_DIR"
+elif [ ! -f ".env" ]; then
     if [ -f ".env.example" ]; then
         cp .env.example .env
         echo "Created .env from .env.example"
+        echo "WARNING: Please edit .env to add your configuration"
     fi
 fi
 
