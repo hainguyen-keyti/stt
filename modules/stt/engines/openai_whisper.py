@@ -19,34 +19,10 @@ try:
     import whisper
     import torch
     OPENAI_WHISPER_AVAILABLE = True
-
-    # Patch for MPS: dtw function uses x.double() which MPS doesn't support
-    # We need to move tensor to CPU before calling double()
-    try:
-        from whisper import timing
-
-        # Get the original dtw_cpu function
-        _original_dtw_cpu = timing.dtw_cpu
-
-        def _patched_dtw(x):
-            # Move to CPU first, then convert to float64
-            if hasattr(x, 'cpu'):
-                x = x.cpu()
-            if hasattr(x, 'double'):
-                x = x.double()
-            if hasattr(x, 'numpy'):
-                x = x.numpy()
-            return _original_dtw_cpu(x)
-
-        # Only patch if we're actually using MPS
-        if torch.backends.mps.is_available():
-            timing.dtw = _patched_dtw
-            logger.info("Patched whisper.timing.dtw for MPS compatibility")
-    except Exception as e:
-        logger.debug(f"Could not patch dtw for MPS: {e}")
-
+    MPS_AVAILABLE = torch.backends.mps.is_available()
 except ImportError:
     OPENAI_WHISPER_AVAILABLE = False
+    MPS_AVAILABLE = False
     logger.warning("OpenAI Whisper not available. Install with: pip install openai-whisper")
 
 
@@ -139,6 +115,12 @@ class OpenAIWhisperEngine(ASREngine):
         no_speech_threshold = config.get("no_speech_threshold", 0.6)
         compression_ratio_threshold = config.get("compression_ratio_threshold", 2.4)
         logprob_threshold = config.get("logprob_threshold", -1.0)
+
+        # MPS doesn't support float64 needed for word_timestamps alignment
+        # Disable word_timestamps on MPS to avoid hallucination issues
+        if MPS_AVAILABLE and self.device == "mps" and word_timestamps:
+            logger.warning("word_timestamps disabled on MPS (not supported). Use faster-whisper for word-level timing on Apple Silicon.")
+            word_timestamps = False
 
         logger.info(f"Transcribing: {audio_path}")
         logger.info(f"Config: language={language}, word_timestamps={word_timestamps}, initial_prompt={initial_prompt}")
