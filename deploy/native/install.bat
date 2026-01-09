@@ -11,9 +11,13 @@ echo 7KT-AI Native Installation
 echo ==========================================
 echo.
 
-REM Install directory = current directory
+REM Install directory = directory where script is run from (not script location)
+REM Use pushd/popd to handle paths correctly
 set INSTALL_DIR=%CD%
 set TOOLS_DIR=%INSTALL_DIR%\.tools
+
+REM Change to install directory
+cd /d "%INSTALL_DIR%"
 
 REM Create tools directory
 mkdir "%TOOLS_DIR%" 2>nul
@@ -240,7 +244,16 @@ REM Build frontend
 REM =============================================================================
 echo.
 echo Building frontend...
+echo DEBUG: INSTALL_DIR=%INSTALL_DIR%
+echo DEBUG: NPM_BIN=%NPM_BIN%
+echo DEBUG: Changing to %INSTALL_DIR%\web
 cd /d "%INSTALL_DIR%\web"
+if errorlevel 1 (
+    echo ERROR: Cannot cd to web directory
+    echo Trying alternative: %CD%\web
+    cd /d "%CD%\web"
+)
+echo DEBUG: Current directory is %CD%
 "%NPM_BIN%" install
 "%NPM_BIN%" run build
 cd /d "%INSTALL_DIR%"
